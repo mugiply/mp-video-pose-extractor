@@ -59,18 +59,33 @@
       <div class="preview-video-container">
         <p class="label">ソース映像</p>
         <video
+          #sourceVideo
           class="preview-video"
           [src]="sourceVideoUrl"
           autoplay
           muted
+          controls
         ></video>
       </div>
-      <div class="preview-video-container">
-        <p class="label">検出結果</p>
-        <img
+      <div class="preview-video-container" *ngIf="posePreviewMediaStream">
+        <p class="label">全体の検出結果</p>
+        <video
+          #posePreviewVideo
           class="preview-video"
-          src="https://via.placeholder.com/1080x1920"
-        />
+          [srcObject]="posePreviewMediaStream"
+          autoplay
+          muted
+        ></video>
+      </div>
+      <div class="preview-video-container" *ngIf="handPreviewMediaStream">
+        <p class="label">手の検出結果</p>
+        <video
+          #handPreviewVideo
+          class="preview-video"
+          [srcObject]="handPreviewMediaStream"
+          autoplay
+          muted
+        ></video>
       </div>
     </mat-card-content>
   </mat-card>
