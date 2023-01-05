@@ -10,7 +10,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Results } from '@mediapipe/holistic';
 import { Subscription } from 'rxjs';
 import { PoseExporterService } from '../pose-exporter.service';
-import { ExtractorService } from './extractor.service';
+import { PoseExtractorService } from '../pose-extractor.service';
 
 @Component({
   selector: 'app-extractor',
@@ -36,7 +36,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
   constructor(
     public poseExporterService: PoseExporterService,
     private domSanitizer: DomSanitizer,
-    private extractorService: ExtractorService,
+    private extractorService: PoseExtractorService,
     private snackBar: MatSnackBar
   ) {}
 

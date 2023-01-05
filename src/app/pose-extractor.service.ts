@@ -15,7 +15,7 @@ import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
 @Injectable({
   providedIn: 'root',
 })
-export class ExtractorService {
+export class PoseExtractorService {
   public onResultsEventEmitter: EventEmitter<Results> = new EventEmitter();
 
   private holistic?: Holistic;

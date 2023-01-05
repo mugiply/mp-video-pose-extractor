@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { ExtractorService } from './extractor.service';
+import { PoseExtractorService } from './pose-extractor.service';
 
 describe('ExtractorService', () => {
-  let service: ExtractorService;
+  let service: PoseExtractorService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(ExtractorService);
+    service = TestBed.inject(PoseExtractorService);
   });
 
   it('should be created', () => {
