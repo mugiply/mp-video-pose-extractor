@@ -8,7 +8,12 @@
       >
     </mat-card-header>
     <mat-card-content style="padding: 0.5rem 1rem 1rem 1rem">
-      <button mat-raised-button color="primary" (click)="fileChooser.click()">
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="fileChooser.click()"
+        [disabled]="state === 'processing'"
+      >
         <mat-icon>upload</mat-icon>
         動画ファイルを選択
       </button>
@@ -19,39 +24,79 @@
         (change)="onChooseSourceVideoFile($event)"
         accept=".mp4"
       />
+      <small *ngIf="sourceVideoFileName !== undefined">
+        &nbsp;&nbsp;
+        {{ sourceVideoFileName }}
+      </small>
     </mat-card-content>
   </mat-card>
+
   <mat-card>
     <mat-card-header>
-      <mat-card-title>検出結果</mat-card-title>
-      <mat-card-subtitle> ポーズ数: 0 </mat-card-subtitle>
+      <mat-card-title>
+        <!-- 検出状態 -->
+        <ng-container *ngIf="state === 'initial' || state === 'completed'">
+          検出結果
+        </ng-container>
+
+        <ng-container *ngIf="state === 'processing'">
+          検出中
+
+          <!-- 進捗 -->
+          <ng-container *ngIf="sourceVideo && 0 < sourceVideo.duration">
+            {{
+              mathFloor((sourceVideo.currentTime / sourceVideo.duration) * 100)
+            }}%
+          </ng-container>
+          <!---->
+        </ng-container>
+
+        <!---->
+      </mat-card-title>
+      <mat-card-subtitle>
+        <!-- ポーズ数 -->
+        ポーズ数:
+        <ng-container *ngIf="state === 'initial'">-</ng-container>
+        <ng-container *ngIf="state === 'processing' || state === 'completed'">
+          {{ poseExporterService.getNumberOfPoses() }}
+        </ng-container>
+        <!---->
+      </mat-card-subtitle>
     </mat-card-header>
     <mat-card-content>
       <p></p>
     </mat-card-content>
     <mat-card-actions>
+      <!-- 保存ボタン -->
       <button
         mat-button
         color="primary"
         matTooltip="ポーズおよびフレーム画像を ZIP ファイルとして保存します"
+        (click)="poseExporterService.downloadAsJson()"
+        [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
-        すべて保存
+        保存
       </button>
       &nbsp;&nbsp;
       <button
         mat-button
         matTooltip="ポーズのみを JSON ファイルとして保存します"
+        [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
         ポーズのみ保存
       </button>
+      <!---->
     </mat-card-actions>
   </mat-card>
 </div>
 
 <div class="row">
-  <mat-card class="preview">
+  <mat-card
+    class="preview"
+    [style.visibility]="state === 'initial' ? 'hidden' : 'visible'"
+  >
     <mat-card-header>
       <mat-card-title> プレビュー </mat-card-title>
     </mat-card-header>
@@ -64,7 +109,7 @@
           [src]="sourceVideoUrl"
           autoplay
           muted
-          controls
+          (ended)="onSourceVideoEnded($event)"
         ></video>
       </div>
       <div class="preview-video-container" *ngIf="posePreviewMediaStream">

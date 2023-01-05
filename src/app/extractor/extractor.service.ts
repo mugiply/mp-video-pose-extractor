@@ -102,6 +102,9 @@ export class ExtractorService {
       );
     }
 
+    // イベントを送出
+    this.onResultsEventEmitter.emit(results);
+
     // キャンバスを塗りつぶし
     this.posePreviewCanvasContext.save();
     this.posePreviewCanvasContext.clearRect(
