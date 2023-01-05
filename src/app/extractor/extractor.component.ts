@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Results } from '@mediapipe/holistic';
+import { GpuBuffer, Results } from '@mediapipe/holistic';
 import { Subscription } from 'rxjs';
 import { PoseExporterService } from '../pose-exporter.service';
 import { PoseExtractorService } from '../pose-extractor.service';
@@ -57,7 +57,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
     this.state = 'completed';
     const message = this.snackBar.open('検出が完了しました', '保存');
     message.onAction().subscribe(() => {
-      this.poseExporterService.downloadAsJson();
+      this.poseExporterService.downloadAsZip();
     });
   }
 
@@ -108,10 +108,24 @@ export class ExtractorComponent implements OnInit, OnDestroy {
     const sourceVideoTimeMiliseconds = Math.floor(
       this.sourceVideoElement?.nativeElement.currentTime * 1000
     );
+
+    const sourceVideoDurationMiliseconds = Math.floor(
+      this.sourceVideoElement?.nativeElement.duration * 1000
+    );
+
+    const sourceVideoFrameImage: GpuBuffer = results.image;
+    let sourceVideoFrameImageDataUrl;
+    if (sourceVideoFrameImage instanceof HTMLCanvasElement) {
+      sourceVideoFrameImageDataUrl =
+        sourceVideoFrameImage.toDataURL('image/jpeg');
+    }
+
     this.poseExporterService.push(
       sourceVideoTimeMiliseconds,
+      sourceVideoFrameImageDataUrl,
       videoElement.videoWidth,
       videoElement.videoHeight,
+      sourceVideoDurationMiliseconds,
       results
     );
   }

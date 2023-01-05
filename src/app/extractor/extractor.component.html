@@ -72,7 +72,7 @@
         mat-button
         color="primary"
         matTooltip="ポーズおよびフレーム画像を ZIP ファイルとして保存します"
-        (click)="poseExporterService.downloadAsJson()"
+        (click)="poseExporterService.downloadAsZip()"
         [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
@@ -82,6 +82,7 @@
       <button
         mat-button
         matTooltip="ポーズのみを JSON ファイルとして保存します"
+        (click)="poseExporterService.downloadAsJson()"
         [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
