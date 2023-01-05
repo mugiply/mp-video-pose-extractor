@@ -55,9 +55,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
 
   onSourceVideoEnded(event: any) {
     this.state = 'completed';
-    const message = this.snackBar.open('検出が完了しました', '保存', {
-      duration: 5000,
-    });
+    const message = this.snackBar.open('検出が完了しました', '保存');
     message.onAction().subscribe(() => {
       this.poseExporterService.downloadAsJson();
     });

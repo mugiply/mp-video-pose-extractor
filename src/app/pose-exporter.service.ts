@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Results } from '@mediapipe/holistic';
+import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 
 interface PoseItem {
   t: number;
@@ -9,9 +9,14 @@ interface PoseItem {
 }
 
 interface PoseJson {
-  videoWidth: number;
-  videoHeight: number;
+  generator: string;
+  version: number;
+  video: {
+    width: number;
+    height: number;
+  };
   poses: PoseItem[];
+  poseLandmarkMapppings: string[];
 }
 
 @Injectable({
@@ -23,7 +28,9 @@ export class PoseExporterService {
   private videoWidth: number = 0;
   private videoHeight: number = 0;
 
-  constructor() {}
+  constructor() {
+    console.log();
+  }
 
   downloadAsJson() {
     const blob = new Blob([this.getJson()], {
@@ -82,11 +89,23 @@ export class PoseExporterService {
   private getJson(): string {
     if (this.videoName === undefined) return '{}';
 
+    let poseLandmarkMappings = [];
+    for (const key of Object.keys(POSE_LANDMARKS)) {
+      const index: number = POSE_LANDMARKS[key as keyof typeof POSE_LANDMARKS];
+      poseLandmarkMappings[index] = key;
+    }
+
     const json: PoseJson = {
-      videoWidth: this.videoWidth,
-      videoHeight: this.videoHeight,
+      generator: 'mp-video-pose-extractor',
+      version: 1,
+      video: {
+        width: this.videoWidth,
+        height: this.videoHeight,
+      },
       poses: this.poses,
+      poseLandmarkMapppings: poseLandmarkMappings,
     };
+
     return JSON.stringify(json);
   }
 }
