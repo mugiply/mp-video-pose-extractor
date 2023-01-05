@@ -1,0 +1,77 @@
+<div class="row">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title> ソース動画 </mat-card-title>
+      <mat-card-subtitle
+        >ポーズを抽出したい動画ファイルを選択してください<br />
+        この処理はローカルで行われ、サーバには送信されません</mat-card-subtitle
+      >
+    </mat-card-header>
+    <mat-card-content style="padding: 0.5rem 1rem 1rem 1rem">
+      <button mat-raised-button color="primary" (click)="fileChooser.click()">
+        <mat-icon>upload</mat-icon>
+        動画ファイルを選択
+      </button>
+      <input
+        #fileChooser
+        type="file"
+        style="display: none"
+        (change)="onChooseSourceVideoFile($event)"
+        accept=".mp4"
+      />
+    </mat-card-content>
+  </mat-card>
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>検出結果</mat-card-title>
+      <mat-card-subtitle> ポーズ数: 0 </mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <p></p>
+    </mat-card-content>
+    <mat-card-actions>
+      <button
+        mat-button
+        color="primary"
+        matTooltip="ポーズおよびフレーム画像を ZIP ファイルとして保存します"
+      >
+        <mat-icon>download</mat-icon>
+        すべて保存
+      </button>
+      &nbsp;&nbsp;
+      <button
+        mat-button
+        matTooltip="ポーズのみを JSON ファイルとして保存します"
+      >
+        <mat-icon>download</mat-icon>
+        ポーズのみ保存
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
+
+<div class="row">
+  <mat-card class="preview">
+    <mat-card-header>
+      <mat-card-title> プレビュー </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="preview-video-container">
+        <p class="label">ソース映像</p>
+        <video
+          class="preview-video"
+          [src]="sourceVideoUrl"
+          autoplay
+          muted
+        ></video>
+      </div>
+      <div class="preview-video-container">
+        <p class="label">検出結果</p>
+        <img
+          class="preview-video"
+          src="https://via.placeholder.com/1080x1920"
+        />
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
