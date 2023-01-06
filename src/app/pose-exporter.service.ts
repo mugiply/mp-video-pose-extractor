@@ -3,11 +3,18 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
 
+// @ts-ignore
+const cosSimilarity = require('cos-similarity');
+
 interface PoseItem {
   t: number;
   pose: number[][];
-  rHand?: number[][];
-  lHand?: number[][];
+  vectors: {
+    rightWristToRightElbow: number[];
+    rightElbowToRightShoulder: number[];
+    leftWristToLeftElbow: number[];
+    leftElbowToLeftShoulder: number[];
+  };
 }
 
 interface PoseJson {
@@ -93,26 +100,110 @@ export class PoseExporterService {
       );
       return;
     }
+
+    const vectors = {
+      rightWristToRightElbow: [
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].x -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].x,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].y -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].y,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].z -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].z,
+      ],
+      rightElbowToRightShoulder: [
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].x -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].x,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].y -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].y,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].z -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].z,
+      ],
+      leftWristToLeftElbow: [
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].x -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].x,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].y -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].y,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].z -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].z,
+      ],
+      leftElbowToLeftShoulder: [
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].x -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].x,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].y -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].y,
+        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].z -
+          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].z,
+      ],
+    };
+
     const pose: PoseItem = {
       t: videoTimeMiliseconds,
       pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
-        return [landmark.x, landmark.y, landmark.z];
+        return [landmark.x, landmark.y, landmark.z, landmark.visibility];
       }),
+      vectors: vectors,
     };
 
-    /*if (results.rightHandLandmarks) {
-      pose.rHand = results.rightHandLandmarks.map((landmark) => {
-        return [landmark.x, landmark.y, landmark.z];
-      });
+    if (1 <= this.poses.length) {
+      const lastPose = this.poses[this.poses.length - 1];
+      if (this.isSimilarPose(lastPose, pose)) {
+        return;
+      }
     }
 
-    if (results.leftHandLandmarks) {
-      pose.lHand = results.leftHandLandmarks.map((landmark) => {
-        return [landmark.x, landmark.y, landmark.z];
-      });
-    }*/
-
     this.poses.push(pose);
+  }
+
+  isSimilarPose(pose1: PoseItem, pose2: PoseItem) {
+    const cosSimilarities = {
+      leftWristToLeftElbow: cosSimilarity(
+        pose1.vectors.leftWristToLeftElbow,
+        pose2.vectors.leftWristToLeftElbow
+      ),
+      leftElbowToLeftShoulder: cosSimilarity(
+        pose1.vectors.leftElbowToLeftShoulder,
+        pose2.vectors.leftElbowToLeftShoulder
+      ),
+      rightWristToRightElbow: cosSimilarity(
+        pose1.vectors.rightWristToRightElbow,
+        pose2.vectors.rightWristToRightElbow
+      ),
+      rightElbowToRightShoulder: cosSimilarity(
+        pose1.vectors.rightElbowToRightShoulder,
+        pose2.vectors.rightElbowToRightShoulder
+      ),
+    };
+
+    let isSimilar = false;
+    const cosSimilaritiesSum = Object.values(cosSimilarities).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    if (cosSimilaritiesSum <= 0.9 * 4) isSimilar = true;
+
+    console.log(
+      `[PoseExporterService] isSimilarPose (${pose1.t} <-> ${pose2.t})`,
+      isSimilar,
+      cosSimilarities
+    );
+
+    return isSimilar;
+  }
+
+  removeDuplicatedPoses() {
+    const newPoses: PoseItem[] = [];
+    let lastPose: PoseItem | undefined = undefined;
+    for (const pose of this.poses) {
+      if (lastPose === undefined) {
+        lastPose = pose;
+        newPoses.push(pose);
+        continue;
+      }
+
+      if (pose.t === lastPose.t) continue;
+      lastPose = pose;
+      newPoses.push(pose);
+    }
   }
 
   downloadAsJson() {
