@@ -15,6 +15,7 @@ interface PoseItem {
     leftWristToLeftElbow: number[];
     leftElbowToLeftShoulder: number[];
   };
+  frameImageDataUrl?: string;
 }
 
 interface PoseJson {
@@ -55,6 +56,10 @@ export class PoseExporterService {
     return this.poses.length;
   }
 
+  getPoses(): PoseItem[] {
+    return this.poses;
+  }
+
   push(
     videoTimeMiliseconds: number,
     frameImageJpegDataUrl: string | undefined,
@@ -70,25 +75,6 @@ export class PoseExporterService {
     };
 
     if (results.poseLandmarks === undefined) return;
-
-    if (frameImageJpegDataUrl && this.jsZip) {
-      try {
-        const index =
-          frameImageJpegDataUrl.indexOf('base64,') + 'base64,'.length;
-        frameImageJpegDataUrl = frameImageJpegDataUrl.substring(index);
-
-        this.jsZip.file(
-          `snapshot-${videoTimeMiliseconds}.jpg`,
-          frameImageJpegDataUrl,
-          { base64: true }
-        );
-      } catch (error) {
-        console.warn(
-          `[PoseExporterService] push - Could not push frame image`,
-          error
-        );
-      }
-    }
 
     const poseLandmarksWithWorldCoordinate: any[] = (results as any).ea
       ? (results as any).ea
@@ -142,6 +128,7 @@ export class PoseExporterService {
         return [landmark.x, landmark.y, landmark.z, landmark.visibility];
       }),
       vectors: vectors,
+      frameImageDataUrl: frameImageJpegDataUrl,
     };
 
     if (1 <= this.poses.length) {
@@ -232,6 +219,22 @@ export class PoseExporterService {
     );
 
     this.jsZip.file('poses.json', this.getJson());
+
+    for (const pose of this.poses) {
+      if (!pose.frameImageDataUrl) continue;
+      try {
+        const index =
+          pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
+        const base64 = pose.frameImageDataUrl.substring(index);
+
+        this.jsZip.file(`snapshot-${pose.t}.jpg`, base64, { base64: true });
+      } catch (error) {
+        console.warn(
+          `[PoseExporterService] push - Could not push frame image`,
+          error
+        );
+      }
+    }
 
     const content = await this.jsZip.generateAsync({ type: 'blob' });
     const url = window.URL.createObjectURL(content);

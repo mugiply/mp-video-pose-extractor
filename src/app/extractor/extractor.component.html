@@ -1,4 +1,5 @@
 <div class="row">
+  <!-- ソース動画領域 -->
   <mat-card>
     <mat-card-header>
       <mat-card-title> ソース動画 </mat-card-title>
@@ -30,8 +31,10 @@
       </small>
     </mat-card-content>
   </mat-card>
+  <!---->
 
   <mat-card>
+    <!-- 検出結果領域 -->
     <mat-card-header>
       <mat-card-title>
         <!-- 検出状態 -->
@@ -91,9 +94,11 @@
       <!---->
     </mat-card-actions>
   </mat-card>
+  <!---->
 </div>
 
 <div class="row">
+  <!-- プレビュー領域 -->
   <mat-card
     class="preview"
     [style.visibility]="state === 'initial' ? 'hidden' : 'visible'"
@@ -135,4 +140,27 @@
       </div>
     </mat-card-content>
   </mat-card>
+  <!---->
+</div>
+
+<div class="row">
+  <!-- 検出されたポーズ領域 -->
+  <mat-card
+    class="preview"
+    *ngIf="state === 'processing' || state === 'completed'"
+  >
+    <mat-card-header>
+      <mat-card-title> プレビュー </mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div
+        class="preview-video-container"
+        *ngFor="let pose of poseExporterService.getPoses().slice().reverse()"
+      >
+        <p class="label">{{ pose.t }}</p>
+        <img class="preview-video" [src]="pose.frameImageDataUrl" />
+      </div>
+    </mat-card-content>
+  </mat-card>
+  <!---->
 </div>
