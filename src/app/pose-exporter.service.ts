@@ -179,7 +179,7 @@ export class PoseExporterService {
       (sum, value) => sum + value,
       0
     );
-    if (cosSimilaritiesSum <= 0.9 * 4) isSimilar = true;
+    if (cosSimilaritiesSum >= 0.9 * 4) isSimilar = true;
 
     console.log(
       `[PoseExporterService] isSimilarPose (${pose1.t} <-> ${pose2.t})`,
