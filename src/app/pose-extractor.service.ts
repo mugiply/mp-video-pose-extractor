@@ -16,7 +16,10 @@ import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
   providedIn: 'root',
 })
 export class PoseExtractorService {
-  public onResultsEventEmitter: EventEmitter<Results> = new EventEmitter();
+  public onResultsEventEmitter: EventEmitter<{
+    mpResults: Results;
+    posePreviewImageDataUrl: string;
+  }> = new EventEmitter();
 
   private holistic?: Holistic;
 
@@ -81,7 +84,7 @@ export class PoseExtractorService {
       minTrackingConfidence: 0.6,
     });
 
-    this.holistic.onResults((results: any) => {
+    this.holistic.onResults((results: Results) => {
       this.onResults(results);
     });
   }
@@ -101,9 +104,6 @@ export class PoseExtractorService {
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22]
       );
     }
-
-    // イベントを送出
-    this.onResultsEventEmitter.emit(results);
 
     // キャンバスを塗りつぶし
     this.posePreviewCanvasContext.save();
@@ -259,6 +259,13 @@ export class PoseExtractorService {
         );
       }
     }
+
+    // イベントを送出
+    this.onResultsEventEmitter.emit({
+      mpResults: results,
+      posePreviewImageDataUrl:
+        this.posePreviewCanvasElement.toDataURL('image/jpeg'),
+    });
 
     // 完了
     this.posePreviewCanvasContext.restore();

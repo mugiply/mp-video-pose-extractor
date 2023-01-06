@@ -42,9 +42,14 @@ export class ExtractorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.onResultsEventEmitterSubscription =
-      this.extractorService.onResultsEventEmitter.subscribe((results: any) => {
-        this.onPoseDetected(results);
-      });
+      this.extractorService.onResultsEventEmitter.subscribe(
+        (results: { mpResults: Results; posePreviewImageDataUrl: string }) => {
+          this.onPoseDetected(
+            results.mpResults,
+            results.posePreviewImageDataUrl
+          );
+        }
+      );
   }
 
   ngOnDestroy(): void {
@@ -101,7 +106,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
     this.onVideoFrame();
   }
 
-  async onPoseDetected(results: Results) {
+  async onPoseDetected(results: Results, posePreviewImageDataUrl: string) {
     const videoElement = this.sourceVideoElement?.nativeElement;
     if (!videoElement) return;
 
@@ -113,16 +118,9 @@ export class ExtractorComponent implements OnInit, OnDestroy {
       this.sourceVideoElement?.nativeElement.duration * 1000
     );
 
-    const sourceVideoFrameImage: GpuBuffer = results.image;
-    let sourceVideoFrameImageDataUrl;
-    if (sourceVideoFrameImage instanceof HTMLCanvasElement) {
-      sourceVideoFrameImageDataUrl =
-        sourceVideoFrameImage.toDataURL('image/jpeg');
-    }
-
     this.poseExporterService.push(
       sourceVideoTimeMiliseconds,
-      sourceVideoFrameImageDataUrl,
+      posePreviewImageDataUrl,
       videoElement.videoWidth,
       videoElement.videoHeight,
       sourceVideoDurationMiliseconds,

@@ -50,7 +50,7 @@ export class PoseExporterService {
 
   push(
     videoTimeMiliseconds: number,
-    videoFrameImageJpegDataUrl: string | undefined,
+    frameImageJpegDataUrl: string | undefined,
     videoWidth: number,
     videoHeight: number,
     videoDuration: number,
@@ -64,16 +64,15 @@ export class PoseExporterService {
 
     if (results.poseLandmarks === undefined) return;
 
-    if (videoFrameImageJpegDataUrl && this.jsZip) {
+    if (frameImageJpegDataUrl && this.jsZip) {
       try {
         const index =
-          videoFrameImageJpegDataUrl.indexOf('base64,') + 'base64,'.length;
-        videoFrameImageJpegDataUrl =
-          videoFrameImageJpegDataUrl.substring(index);
+          frameImageJpegDataUrl.indexOf('base64,') + 'base64,'.length;
+        frameImageJpegDataUrl = frameImageJpegDataUrl.substring(index);
 
         this.jsZip.file(
           `snapshot-${videoTimeMiliseconds}.jpg`,
-          videoFrameImageJpegDataUrl,
+          frameImageJpegDataUrl,
           { base64: true }
         );
       } catch (error) {
