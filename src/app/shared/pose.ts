@@ -1,12 +1,14 @@
+export interface PoseVector {
+  rightWristToRightElbow: number[];
+  rightElbowToRightShoulder: number[];
+  leftWristToLeftElbow: number[];
+  leftElbowToLeftShoulder: number[];
+}
+
 export interface PoseItem {
   t: number;
   pose: number[][];
-  vectors: {
-    rightWristToRightElbow: number[];
-    rightElbowToRightShoulder: number[];
-    leftWristToLeftElbow: number[];
-    leftElbowToLeftShoulder: number[];
-  };
+  vectors: PoseVector;
   frameImageDataUrl?: string;
 }
 

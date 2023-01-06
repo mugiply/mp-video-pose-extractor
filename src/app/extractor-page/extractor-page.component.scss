@@ -1,0 +1,14 @@
+:host {
+  display: block;
+  padding: 2rem 2rem;
+}
+
+// プレビュー領域
+
+mat-card.preview {
+  width: 100%;
+
+  mat-card-content {
+    padding: 2% 3%;
+  }
+}

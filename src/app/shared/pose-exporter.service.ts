@@ -2,14 +2,17 @@ import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
-import { PoseItem, PoseJson } from './pose';
+import { PoseItem, PoseJson, PoseVector } from './pose';
 
 // @ts-ignore
 const cosSimilarity = require('cos-similarity');
 
-@Injectable({
-  providedIn: 'root',
-})
+/**
+ * ポーズを管理するためのサービス
+ *
+ * ※ シングルトンなサービスではないため、Component で providers に指定して使用することを想定
+ */
+@Injectable()
 export class PoseExporterService {
   private videoName?: string;
   private videoMetadata?: {
@@ -29,6 +32,44 @@ export class PoseExporterService {
     this.jsZip = new JSZip();
   }
 
+  loadJson(json: string) {
+    const parsedJson = JSON.parse(json);
+
+    if (parsedJson.generator !== 'mp-video-pose-extractor') {
+      throw '不正なファイル';
+    } else if (parsedJson.version !== 1) {
+      throw '未対応のバージョン';
+    }
+
+    this.videoMetadata = parsedJson.video;
+    this.poses = parsedJson.poses;
+  }
+
+  async loadZip(buffer: ArrayBuffer) {
+    this.jsZip = new JSZip();
+    const zip = await this.jsZip.loadAsync(buffer, { base64: false });
+    if (!zip) throw 'ZIPファイルを読み込めませんでした';
+
+    const json = await zip.file('poses.json')?.async('text');
+    if (json === undefined) {
+      throw 'ZIPファイルに pose.json が含まれていません';
+    }
+
+    this.loadJson(json);
+
+    for (const pose of this.poses) {
+      const frameImageFileName = `snapshot-${pose.t}.jpg`;
+      const imageBase64 = await this.jsZip
+        .file(frameImageFileName)
+        ?.async('base64');
+      if (imageBase64 === undefined) {
+        continue;
+      }
+
+      pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+    }
+  }
+
   getNumberOfPoses(): number {
     return this.poses.length;
   }
@@ -37,7 +78,7 @@ export class PoseExporterService {
     return this.poses;
   }
 
-  push(
+  pushPose(
     videoTimeMiliseconds: number,
     frameImageJpegDataUrl: string | undefined,
     videoWidth: number,
@@ -58,59 +99,33 @@ export class PoseExporterService {
       : [];
     if (poseLandmarksWithWorldCoordinate.length === 0) {
       console.warn(
-        `[PoseExporterService] push - Could not get the pose with the world coordinate`,
+        `[PoseExporterService] pushPose - Could not get the pose with the world coordinate`,
         results
       );
       return;
     }
 
-    const vectors = {
-      rightWristToRightElbow: [
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].x -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].x,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].y -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].y,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_WRIST].z -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].z,
-      ],
-      rightElbowToRightShoulder: [
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].x -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].x,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].y -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].y,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_ELBOW].z -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.RIGHT_SHOULDER].z,
-      ],
-      leftWristToLeftElbow: [
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].x -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].x,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].y -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].y,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_WRIST].z -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].z,
-      ],
-      leftElbowToLeftShoulder: [
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].x -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].x,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].y -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].y,
-        poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_ELBOW].z -
-          poseLandmarksWithWorldCoordinate[POSE_LANDMARKS.LEFT_SHOULDER].z,
-      ],
-    };
+    const poseVector = this.getPoseVector(poseLandmarksWithWorldCoordinate);
+    if (!poseVector) {
+      console.warn(
+        `[PoseExporterService] pushPose - Could not get the pose vector`,
+        poseLandmarksWithWorldCoordinate
+      );
+      return;
+    }
 
     const pose: PoseItem = {
       t: videoTimeMiliseconds,
       pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
         return [landmark.x, landmark.y, landmark.z, landmark.visibility];
       }),
-      vectors: vectors,
+      vectors: poseVector,
       frameImageDataUrl: frameImageJpegDataUrl,
     };
 
     if (1 <= this.poses.length) {
       const lastPose = this.poses[this.poses.length - 1];
-      if (this.isSimilarPose(lastPose, pose)) {
+      if (this.isSimilarPose(lastPose.vectors, pose.vectors)) {
         return;
       }
     }
@@ -118,57 +133,50 @@ export class PoseExporterService {
     this.poses.push(pose);
   }
 
-  isSimilarPose(pose1: PoseItem, pose2: PoseItem, threshold = 0.9): boolean {
-    const cosSimilarities = {
-      leftWristToLeftElbow: cosSimilarity(
-        pose1.vectors.leftWristToLeftElbow,
-        pose2.vectors.leftWristToLeftElbow
-      ),
-      leftElbowToLeftShoulder: cosSimilarity(
-        pose1.vectors.leftElbowToLeftShoulder,
-        pose2.vectors.leftElbowToLeftShoulder
-      ),
-      rightWristToRightElbow: cosSimilarity(
-        pose1.vectors.rightWristToRightElbow,
-        pose2.vectors.rightWristToRightElbow
-      ),
-      rightElbowToRightShoulder: cosSimilarity(
-        pose1.vectors.rightElbowToRightShoulder,
-        pose2.vectors.rightElbowToRightShoulder
-      ),
-    };
+  getSimilarPoses(results: Results): PoseItem[] {
+    const poseVector = this.getPoseVector((results as any).ea);
+    if (!poseVector) throw 'Could not get the pose vector';
 
-    let isSimilar = false;
-    const cosSimilaritiesSum = Object.values(cosSimilarities).reduce(
-      (sum, value) => sum + value,
-      0
-    );
-    if (cosSimilaritiesSum >= threshold * Object.keys(cosSimilarities).length)
-      isSimilar = true;
-
-    console.log(
-      `[PoseExporterService] isSimilarPose (${pose1.t} <-> ${pose2.t})`,
-      isSimilar,
-      cosSimilarities
-    );
-
-    return isSimilar;
+    return this.poses.filter((p) => this.isSimilarPose(p.vectors, poseVector));
   }
 
-  removeDuplicatedPoses() {
-    const newPoses: PoseItem[] = [];
-    let lastPose: PoseItem | undefined = undefined;
-    for (const pose of this.poses) {
-      if (lastPose === undefined) {
-        lastPose = pose;
-        newPoses.push(pose);
-        continue;
-      }
-
-      if (pose.t === lastPose.t) continue;
-      lastPose = pose;
-      newPoses.push(pose);
-    }
+  private getPoseVector(
+    poseLandmarks: { x: number; y: number; z: number }[]
+  ): PoseVector | undefined {
+    return {
+      rightWristToRightElbow: [
+        poseLandmarks[POSE_LANDMARKS.RIGHT_WRIST].x -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].x,
+        poseLandmarks[POSE_LANDMARKS.RIGHT_WRIST].y -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].y,
+        poseLandmarks[POSE_LANDMARKS.RIGHT_WRIST].z -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].z,
+      ],
+      rightElbowToRightShoulder: [
+        poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].x -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER].x,
+        poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].y -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER].y,
+        poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW].z -
+          poseLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER].z,
+      ],
+      leftWristToLeftElbow: [
+        poseLandmarks[POSE_LANDMARKS.LEFT_WRIST].x -
+          poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].x,
+        poseLandmarks[POSE_LANDMARKS.LEFT_WRIST].y -
+          poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].y,
+        poseLandmarks[POSE_LANDMARKS.LEFT_WRIST].z -
+          poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].z,
+      ],
+      leftElbowToLeftShoulder: [
+        poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].x -
+          poseLandmarks[POSE_LANDMARKS.LEFT_SHOULDER].x,
+        poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].y -
+          poseLandmarks[POSE_LANDMARKS.LEFT_SHOULDER].y,
+        poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW].z -
+          poseLandmarks[POSE_LANDMARKS.LEFT_SHOULDER].z,
+      ],
+    };
   }
 
   downloadAsJson() {
@@ -238,10 +246,57 @@ export class PoseExporterService {
       generator: 'mp-video-pose-extractor',
       version: 1,
       video: this.videoMetadata!,
-      poses: this.poses,
+      poses: this.poses.map((pose) => {
+        return {
+          t: pose.t,
+          pose: pose.pose,
+          vectors: pose.vectors,
+        };
+      }),
       poseLandmarkMapppings: poseLandmarkMappings,
     };
 
     return JSON.stringify(json);
+  }
+
+  private isSimilarPose(
+    poseVectorA: PoseVector,
+    poseVectorB: PoseVector,
+    threshold = 0.9
+  ): boolean {
+    const cosSimilarities = {
+      leftWristToLeftElbow: cosSimilarity(
+        poseVectorA.leftWristToLeftElbow,
+        poseVectorB.leftWristToLeftElbow
+      ),
+      leftElbowToLeftShoulder: cosSimilarity(
+        poseVectorA.leftElbowToLeftShoulder,
+        poseVectorB.leftElbowToLeftShoulder
+      ),
+      rightWristToRightElbow: cosSimilarity(
+        poseVectorA.rightWristToRightElbow,
+        poseVectorB.rightWristToRightElbow
+      ),
+      rightElbowToRightShoulder: cosSimilarity(
+        poseVectorA.rightElbowToRightShoulder,
+        poseVectorB.rightElbowToRightShoulder
+      ),
+    };
+
+    let isSimilar = false;
+    const cosSimilaritiesSum = Object.values(cosSimilarities).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    if (cosSimilaritiesSum >= threshold * Object.keys(cosSimilarities).length)
+      isSimilar = true;
+
+    console.log(
+      `[PoseExporterService] isSimilarPose`,
+      isSimilar,
+      cosSimilarities
+    );
+
+    return isSimilar;
   }
 }

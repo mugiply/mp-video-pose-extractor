@@ -1,5 +1,20 @@
 <mat-toolbar color="primary">
   <span class="app-title">mp-video-pose-extractor</span>
+
+  <span style="display: flex"></span>
+
+  <button
+    mat-button
+    routerLink=""
+    routerLinkActive="active"
+    [routerLinkActiveOptions]="{ exact: true }"
+  >
+    ポーズ抽出
+  </button>
+
+  <button mat-button routerLink="/tester" routerLinkActive="active">
+    テスト
+  </button>
 </mat-toolbar>
 
-<app-extractor></app-extractor>
+<router-outlet></router-outlet>

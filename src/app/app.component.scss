@@ -1,0 +1,12 @@
+mat-toolbar {
+  button {
+    margin-left: 2rem;
+  }
+
+  button.active {
+    opacity: 0.5;
+  }
+
+  button:not(.active) {
+  }
+}

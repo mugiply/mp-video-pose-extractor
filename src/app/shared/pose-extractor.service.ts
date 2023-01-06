@@ -12,9 +12,12 @@ import {
 } from '@mediapipe/holistic';
 import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
 
-@Injectable({
-  providedIn: 'root',
-})
+/**
+ * MediaPipe を用いて動画からポーズを抽出するためのサービス
+ *
+ * ※ シングルトンなサービスではないため、Component で providers に指定して使用することを想定
+ */
+@Injectable()
 export class PoseExtractorService {
   public onResultsEventEmitter: EventEmitter<{
     mpResults: Results;

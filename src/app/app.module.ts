@@ -5,10 +5,12 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MaterialModule } from 'src/material.module';
-import { ExtractorComponent } from './extractor/extractor.component';
+import { ExtractorPageComponent } from './extractor-page/extractor-page.component';
+import { TesterPageComponent } from './tester-page/tester-page.component';
+import { TesterComponent } from './tester-page/tester.component';
 
 @NgModule({
-  declarations: [AppComponent, ExtractorComponent],
+  declarations: [AppComponent, ExtractorPageComponent, TesterPageComponent, TesterComponent],
   imports: [
     BrowserModule,
     AppRoutingModule,

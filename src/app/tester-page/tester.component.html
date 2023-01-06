@@ -1,0 +1,42 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title> カメラ </mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <div class="preview-video-container" style="display: none">
+      <p class="label">カメラ映像</p>
+      <video
+        #cameraVideo
+        class="preview-video"
+        [srcObject]="cameraStream"
+        autoplay
+        muted
+      ></video>
+    </div>
+    <div class="preview-video-container" *ngIf="cameraPosePreviewStream">
+      <p class="label">全体の検出結果</p>
+      <video
+        #posePreviewVideo
+        class="preview-video"
+        [srcObject]="cameraPosePreviewStream"
+        autoplay
+        muted
+      ></video>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<mat-card *ngIf="isPoseLoaded">
+  <mat-card-header>
+    <mat-card-title> 一致結果 </mat-card-title>
+    <mat-card-subtitle
+      >{{ similarPoses?.length }} 件のポーズと一致</mat-card-subtitle
+    >
+  </mat-card-header>
+  <mat-card-content>
+    <div class="preview-video-container" *ngFor="let pose of similarPoses">
+      <p class="label">{{ pose.t }}</p>
+      <img class="preview-video" [src]="pose.frameImageDataUrl" />
+    </div>
+  </mat-card-content>
+</mat-card>

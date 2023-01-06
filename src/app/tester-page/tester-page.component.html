@@ -1,0 +1,41 @@
+<div class="row">
+  <!-- ポーズファイル領域 -->
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title> ポーズファイル </mat-card-title>
+      <mat-card-subtitle
+        >動作確認したいポーズファイル (ZIP または JSON ファイル)
+        を選択してください。<br />
+        この処理はローカルで行われ、サーバには送信されません</mat-card-subtitle
+      >
+    </mat-card-header>
+    <mat-card-content style="padding: 0.5rem 1rem 1rem 1rem">
+      <button mat-raised-button color="primary" (click)="fileChooser.click()">
+        <mat-icon>upload</mat-icon>
+        ポーズファイルを選択
+      </button>
+      <input
+        #fileChooser
+        type="file"
+        style="display: none"
+        (change)="ohChoosePoseFile($event)"
+        accept=".json,.zip"
+      />
+      <small *ngIf="poseFileName !== undefined">
+        &nbsp;&nbsp;
+        {{ poseFileName }}
+      </small>
+    </mat-card-content>
+  </mat-card>
+  <!---->
+</div>
+
+<!-- テスター領域 -->
+<app-tester
+  class="row"
+  *ngIf="poseFileType"
+  [poseFileType]="poseFileType"
+  [poseJson]="poseJson"
+  [poseZipArrayBuffer]="poseZipArrayBuffer"
+></app-tester>
+<!---->

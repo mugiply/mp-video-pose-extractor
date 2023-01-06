@@ -13,11 +13,12 @@ import { PoseExporterService } from '../shared/pose-exporter.service';
 import { PoseExtractorService } from '../shared/pose-extractor.service';
 
 @Component({
-  selector: 'app-extractor',
-  templateUrl: './extractor.component.html',
-  styleUrls: ['./extractor.component.scss'],
+  selector: 'app-extractor-page',
+  templateUrl: './extractor-page.component.html',
+  styleUrls: ['../shared/shared.scss', './extractor-page.component.scss'],
+  providers: [PoseExtractorService, PoseExporterService],
 })
-export class ExtractorComponent implements OnInit, OnDestroy {
+export class ExtractorPageComponent implements OnInit, OnDestroy {
   @ViewChild('sourceVideo')
   public sourceVideoElement?: ElementRef;
 
@@ -118,7 +119,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
       this.sourceVideoElement?.nativeElement.duration * 1000
     );
 
-    this.poseExporterService.push(
+    this.poseExporterService.pushPose(
       sourceVideoTimeMiliseconds,
       posePreviewImageDataUrl,
       videoElement.videoWidth,

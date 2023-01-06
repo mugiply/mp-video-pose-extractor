@@ -1,0 +1,32 @@
+.row {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+mat-card {
+  width: 48%;
+}
+
+.preview-video-container {
+  display: inline-block;
+  margin-right: 1rem;
+  position: relative;
+
+  .label {
+    background: #ddddddfa;
+    border-bottom-right-radius: 6px;
+    font-size: 0.8rem;
+    position: absolute;
+    left: 0;
+    top: 0;
+    padding: 0.5rem 0.7rem 0.5rem 0.5rem;
+  }
+
+  .preview-video {
+    max-height: 50vh;
+  }
+}
