@@ -9,8 +9,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GpuBuffer, Results } from '@mediapipe/holistic';
 import { Subscription } from 'rxjs';
-import { PoseExporterService } from '../pose-exporter.service';
-import { PoseExtractorService } from '../pose-extractor.service';
+import { PoseExporterService } from '../shared/pose-exporter.service';
+import { PoseExtractorService } from '../shared/pose-extractor.service';
 
 @Component({
   selector: 'app-extractor',
@@ -79,7 +79,7 @@ export class ExtractorComponent implements OnInit, OnDestroy {
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
 
     this.state = 'processing';
-    this.poseExporterService.start(videoName);
+    this.poseExporterService.init(videoName);
 
     await this.onVideoFrame();
 

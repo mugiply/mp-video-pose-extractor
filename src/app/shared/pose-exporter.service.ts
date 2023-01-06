@@ -2,33 +2,10 @@ import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
+import { PoseItem, PoseJson } from './pose';
 
 // @ts-ignore
 const cosSimilarity = require('cos-similarity');
-
-interface PoseItem {
-  t: number;
-  pose: number[][];
-  vectors: {
-    rightWristToRightElbow: number[];
-    rightElbowToRightShoulder: number[];
-    leftWristToLeftElbow: number[];
-    leftElbowToLeftShoulder: number[];
-  };
-  frameImageDataUrl?: string;
-}
-
-interface PoseJson {
-  generator: string;
-  version: number;
-  video: {
-    width: number;
-    height: number;
-    duration: number;
-  };
-  poses: PoseItem[];
-  poseLandmarkMapppings: string[];
-}
 
 @Injectable({
   providedIn: 'root',
@@ -46,7 +23,7 @@ export class PoseExporterService {
 
   constructor(private snackBar: MatSnackBar) {}
 
-  start(videoName: string) {
+  init(videoName: string) {
     this.videoName = videoName;
     this.poses = [];
     this.jsZip = new JSZip();
@@ -141,7 +118,7 @@ export class PoseExporterService {
     this.poses.push(pose);
   }
 
-  isSimilarPose(pose1: PoseItem, pose2: PoseItem) {
+  isSimilarPose(pose1: PoseItem, pose2: PoseItem, threshold = 0.9): boolean {
     const cosSimilarities = {
       leftWristToLeftElbow: cosSimilarity(
         pose1.vectors.leftWristToLeftElbow,
@@ -166,7 +143,8 @@ export class PoseExporterService {
       (sum, value) => sum + value,
       0
     );
-    if (cosSimilaritiesSum >= 0.9 * 4) isSimilar = true;
+    if (cosSimilaritiesSum >= threshold * Object.keys(cosSimilarities).length)
+      isSimilar = true;
 
     console.log(
       `[PoseExporterService] isSimilarPose (${pose1.t} <-> ${pose2.t})`,
