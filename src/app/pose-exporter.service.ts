@@ -83,14 +83,24 @@ export class PoseExporterService {
       }
     }
 
+    const poseLandmarksWithWorldCoordinate: any[] = (results as any).ea
+      ? (results as any).ea
+      : [];
+    if (poseLandmarksWithWorldCoordinate.length === 0) {
+      console.warn(
+        `[PoseExporterService] push - Could not get the pose with the world coordinate`,
+        results
+      );
+      return;
+    }
     const pose: PoseItem = {
       t: videoTimeMiliseconds,
-      pose: results.poseLandmarks.map((landmark) => {
+      pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
         return [landmark.x, landmark.y, landmark.z];
       }),
     };
 
-    if (results.rightHandLandmarks) {
+    /*if (results.rightHandLandmarks) {
       pose.rHand = results.rightHandLandmarks.map((landmark) => {
         return [landmark.x, landmark.y, landmark.z];
       });
@@ -100,7 +110,7 @@ export class PoseExporterService {
       pose.lHand = results.leftHandLandmarks.map((landmark) => {
         return [landmark.x, landmark.y, landmark.z];
       });
-    }
+    }*/
 
     this.poses.push(pose);
   }

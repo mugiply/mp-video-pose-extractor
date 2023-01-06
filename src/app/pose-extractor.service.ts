@@ -97,10 +97,14 @@ export class PoseExtractorService {
     )
       return;
 
-    // 顔まわりの不必要なランドマークを除去
+    // 描画用に不必要なランドマークを除去
+    let poseLandmarks: NormalizedLandmarkList = [];
     if (results.poseLandmarks) {
+      poseLandmarks = JSON.parse(
+        JSON.stringify(results.poseLandmarks)
+      ) as NormalizedLandmarkList;
       this.removeElements(
-        results.poseLandmarks,
+        poseLandmarks,
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22]
       );
     }
@@ -125,12 +129,12 @@ export class PoseExtractorService {
 
     // 肘と手をつなぐ線を描画
     this.posePreviewCanvasContext.lineWidth = 5;
-    if (results.poseLandmarks) {
+    if (poseLandmarks) {
       if (results.rightHandLandmarks) {
         this.posePreviewCanvasContext.strokeStyle = 'white';
         this.connect(this.posePreviewCanvasContext, [
           [
-            results.poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW],
+            poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW],
             results.rightHandLandmarks[0],
           ],
         ]);
@@ -139,7 +143,7 @@ export class PoseExtractorService {
         this.posePreviewCanvasContext.strokeStyle = 'white';
         this.connect(this.posePreviewCanvasContext, [
           [
-            results.poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW],
+            poseLandmarks[POSE_LANDMARKS.LEFT_ELBOW],
             results.leftHandLandmarks[0],
           ],
         ]);
@@ -147,24 +151,22 @@ export class PoseExtractorService {
     }
 
     // ポーズのプレビューを描画
-    if (results.poseLandmarks) {
+    if (poseLandmarks) {
       drawConnectors(
         this.posePreviewCanvasContext,
-        results.poseLandmarks,
+        poseLandmarks,
         POSE_CONNECTIONS,
         { color: 'white' }
       );
       drawLandmarks(
         this.posePreviewCanvasContext,
-        Object.values(POSE_LANDMARKS_LEFT).map(
-          (index) => results.poseLandmarks[index]
-        ),
+        Object.values(POSE_LANDMARKS_LEFT).map((index) => poseLandmarks[index]),
         { visibilityMin: 0.65, color: 'white', fillColor: 'rgb(255,138,0)' }
       );
       drawLandmarks(
         this.posePreviewCanvasContext,
         Object.values(POSE_LANDMARKS_RIGHT).map(
-          (index) => results.poseLandmarks[index]
+          (index) => poseLandmarks[index]
         ),
         { visibilityMin: 0.65, color: 'white', fillColor: 'rgb(0,217,231)' }
       );
