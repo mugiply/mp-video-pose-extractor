@@ -1,11 +1,4 @@
-import {
-  Component,
-  Input,
-  OnChanges,
-  OnInit,
-  SimpleChanges,
-} from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { Component, OnInit } from '@angular/core';
 import { PoseExporterService } from '../shared/pose-exporter.service';
 
 @Component({

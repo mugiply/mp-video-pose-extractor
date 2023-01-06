@@ -60,6 +60,8 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   onSourceVideoEnded(event: any) {
+    this.poseExporterService.finalize();
+
     this.state = 'completed';
     const message = this.snackBar.open('検出が完了しました', '保存');
     message.onAction().subscribe(() => {

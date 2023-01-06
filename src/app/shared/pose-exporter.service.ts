@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
-import { PoseItem, PoseJson, PoseVector } from './pose';
+import { PoseItem, PoseJson, PoseJsonItem, PoseVector } from './pose';
 
 // @ts-ignore
 const cosSimilarity = require('cos-similarity');
@@ -22,14 +22,50 @@ export class PoseExporterService {
   };
 
   private poses: PoseItem[] = [];
-  private jsZip?: JSZip;
+  private isFinalized = false;
+
+  private readonly POSE_VECTOR_MAPPINGS = [
+    'rightWristToRightElbow',
+    'rightElbowToRightShoulder',
+    'leftWristToLeftElbow',
+    'leftElbowToLeftShoulder',
+  ];
+
+  // 全フレームから重複したポーズを削除するかどうか
+  private readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
 
   constructor(private snackBar: MatSnackBar) {}
 
   init(videoName: string) {
     this.videoName = videoName;
     this.poses = [];
-    this.jsZip = new JSZip();
+    this.isFinalized = false;
+  }
+
+  finalize() {
+    if (this.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
+      // 全ポーズを走査して、類似するポーズを削除する
+      const newPoses: PoseItem[] = [];
+      for (const poseA of this.poses) {
+        let isDuplicated = false;
+        for (const poseB of newPoses) {
+          if (this.isSimilarPose(poseA.vectors, poseB.vectors)) {
+            isDuplicated = true;
+            break;
+          }
+        }
+        if (isDuplicated) continue;
+
+        newPoses.push(poseA);
+      }
+
+      console.info(
+        `[PoseExporterService] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`
+      );
+      this.poses = newPoses;
+    }
+
+    this.isFinalized = true;
   }
 
   loadJson(json: string) {
@@ -42,12 +78,26 @@ export class PoseExporterService {
     }
 
     this.videoMetadata = parsedJson.video;
-    this.poses = parsedJson.poses;
+    this.poses = parsedJson.poses.map(
+      (poseJsonItem: PoseJsonItem): PoseItem => {
+        const poseVector: any = {};
+        this.POSE_VECTOR_MAPPINGS.map((key, index) => {
+          poseVector[key as keyof PoseVector] = poseJsonItem.vectors[index];
+        });
+
+        return {
+          t: poseJsonItem.t,
+          pose: poseJsonItem.pose,
+          vectors: poseVector,
+          frameImageDataUrl: undefined,
+        };
+      }
+    );
   }
 
-  async loadZip(buffer: ArrayBuffer) {
-    this.jsZip = new JSZip();
-    const zip = await this.jsZip.loadAsync(buffer, { base64: false });
+  async loadZip(buffer: ArrayBuffer, includeImages: boolean = true) {
+    const jsZip = new JSZip();
+    const zip = await jsZip.loadAsync(buffer, { base64: false });
     if (!zip) throw 'ZIPファイルを読み込めませんでした';
 
     const json = await zip.file('poses.json')?.async('text');
@@ -57,16 +107,16 @@ export class PoseExporterService {
 
     this.loadJson(json);
 
-    for (const pose of this.poses) {
-      const frameImageFileName = `snapshot-${pose.t}.jpg`;
-      const imageBase64 = await this.jsZip
-        .file(frameImageFileName)
-        ?.async('base64');
-      if (imageBase64 === undefined) {
-        continue;
-      }
+    if (includeImages) {
+      for (const pose of this.poses) {
+        const frameImageFileName = `snapshot-${pose.t}.jpg`;
+        const imageBase64 = await zip.file(frameImageFileName)?.async('base64');
+        if (imageBase64 === undefined && !pose.frameImageDataUrl) {
+          continue;
+        }
 
-      pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+        pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+      }
     }
   }
 
@@ -198,13 +248,12 @@ export class PoseExporterService {
   }
 
   async downloadAsZip() {
-    if (!this.jsZip) return;
-
     const message = this.snackBar.open(
       '保存するデータを生成しています... しばらくお待ちください...'
     );
 
-    this.jsZip.file('poses.json', this.getJson());
+    const jsZip = new JSZip();
+    jsZip.file('poses.json', this.getJson());
 
     for (const pose of this.poses) {
       if (!pose.frameImageDataUrl) continue;
@@ -213,7 +262,7 @@ export class PoseExporterService {
           pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
         const base64 = pose.frameImageDataUrl.substring(index);
 
-        this.jsZip.file(`snapshot-${pose.t}.jpg`, base64, { base64: true });
+        jsZip.file(`snapshot-${pose.t}.jpg`, base64, { base64: true });
       } catch (error) {
         console.warn(
           `[PoseExporterService] push - Could not push frame image`,
@@ -222,7 +271,7 @@ export class PoseExporterService {
       }
     }
 
-    const content = await this.jsZip.generateAsync({ type: 'blob' });
+    const content = await jsZip.generateAsync({ type: 'blob' });
     const url = window.URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
@@ -236,6 +285,10 @@ export class PoseExporterService {
   private getJson(): string {
     if (this.videoName === undefined) return '{}';
 
+    if (!this.isFinalized) {
+      this.finalize();
+    }
+
     let poseLandmarkMappings = [];
     for (const key of Object.keys(POSE_LANDMARKS)) {
       const index: number = POSE_LANDMARKS[key as keyof typeof POSE_LANDMARKS];
@@ -246,11 +299,16 @@ export class PoseExporterService {
       generator: 'mp-video-pose-extractor',
       version: 1,
       video: this.videoMetadata!,
-      poses: this.poses.map((pose) => {
+      poses: this.poses.map((pose: PoseItem): PoseJsonItem => {
+        const poseVector = [];
+        for (const key of this.POSE_VECTOR_MAPPINGS) {
+          poseVector.push(pose.vectors[key as keyof PoseVector]);
+        }
+
         return {
           t: pose.t,
           pose: pose.pose,
-          vectors: pose.vectors,
+          vectors: poseVector,
         };
       }),
       poseLandmarkMapppings: poseLandmarkMappings,

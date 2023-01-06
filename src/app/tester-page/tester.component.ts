@@ -37,9 +37,9 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
   public cameraStream?: MediaStream;
   public cameraPosePreviewStream?: MediaStream;
 
-  public similarPoses?: PoseItem[];
-
   public isPoseLoaded = false;
+
+  public similarPoses?: PoseItem[];
 
   private onResultsEventEmitterSubscription?: Subscription;
 

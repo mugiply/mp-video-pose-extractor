@@ -36,7 +36,16 @@
   <mat-card-content>
     <div class="preview-video-container" *ngFor="let pose of similarPoses">
       <p class="label">{{ pose.t }}</p>
-      <img class="preview-video" [src]="pose.frameImageDataUrl" />
+      <img
+        class="preview-video"
+        [src]="pose.frameImageDataUrl"
+        *ngIf="pose.frameImageDataUrl"
+      />
+      <img
+        class="preview-video"
+        src="/assets/dummy.png"
+        *ngIf="!pose.frameImageDataUrl"
+      />
     </div>
   </mat-card-content>
 </mat-card>

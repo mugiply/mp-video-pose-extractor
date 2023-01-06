@@ -20,6 +20,12 @@ export interface PoseJson {
     height: number;
     duration: number;
   };
-  poses: PoseItem[];
+  poses: PoseJsonItem[];
   poseLandmarkMapppings: string[];
+}
+
+export interface PoseJsonItem {
+  t: number;
+  pose: number[][];
+  vectors: number[][];
 }
