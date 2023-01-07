@@ -8,14 +8,21 @@ import { MaterialModule } from 'src/material.module';
 import { ExtractorPageComponent } from './extractor-page/extractor-page.component';
 import { TesterPageComponent } from './tester-page/tester-page.component';
 import { TesterComponent } from './tester-page/tester.component';
+import { NgxMpPoseExtractorModule } from 'ngx-mp-pose-extractor';
 
 @NgModule({
-  declarations: [AppComponent, ExtractorPageComponent, TesterPageComponent, TesterComponent],
+  declarations: [
+    AppComponent,
+    ExtractorPageComponent,
+    TesterPageComponent,
+    TesterComponent,
+  ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     BrowserAnimationsModule,
     MaterialModule,
+    NgxMpPoseExtractorModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

@@ -10,10 +10,9 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Results } from '@mediapipe/holistic';
+import { PoseExtractorService, PoseItem } from 'ngx-mp-pose-extractor';
+import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
-import { PoseItem } from '../shared/pose';
-import { PoseExporterService } from '../shared/pose-exporter.service';
-import { PoseExtractorService } from '../shared/pose-extractor.service';
 
 @Component({
   selector: 'app-tester',
@@ -45,7 +44,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
   constructor(
     private poseExtractorService: PoseExtractorService,
-    private poseExporterService: PoseExporterService,
+    private poseComposerService: PoseComposerService,
     private snackBar: MatSnackBar
   ) {}
 
@@ -86,9 +85,9 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
     try {
       if (this.poseFileType === 'zip' && this.poseZipArrayBuffer) {
-        await this.poseExporterService.loadZip(this.poseZipArrayBuffer);
+        await this.poseComposerService.loadZip(this.poseZipArrayBuffer);
       } else if (this.poseJson) {
-        this.poseExporterService.loadJson(this.poseJson);
+        this.poseComposerService.loadJson(this.poseJson);
       } else {
         throw 'Invalid poseFileType';
       }
@@ -102,7 +101,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
     message.dismiss();
     this.snackBar.open(
-      `${this.poseExporterService.getNumberOfPoses()} 件のポーズを読み込みました`
+      `${this.poseComposerService.getNumberOfPoses()} 件のポーズを読み込みました`
     );
 
     if (!this.isPoseLoaded) {
@@ -150,6 +149,6 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
     mpResults: Results,
     posePreviewImageDataUrl: string
   ) {
-    this.similarPoses = this.poseExporterService.getSimilarPoses(mpResults);
+    this.similarPoses = this.poseComposerService.getSimilarPoses(mpResults);
   }
 }

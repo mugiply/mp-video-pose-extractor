@@ -1,8 +1,10 @@
 import { Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
-import { PoseItem, PoseJson, PoseJsonItem, PoseVector } from './pose';
+import { PoseItem } from '../interfaces/pose-item';
+import { PoseJson } from '../interfaces/pose-json';
+import { PoseJsonItem } from '../interfaces/pose-json-item';
+import { PoseVector } from '../interfaces/pose-vector';
 
 // @ts-ignore
 const cosSimilarity = require('cos-similarity');
@@ -13,7 +15,7 @@ const cosSimilarity = require('cos-similarity');
  * ※ シングルトンなサービスではないため、Component で providers に指定して使用することを想定
  */
 @Injectable()
-export class PoseExporterService {
+export class PoseComposerService {
   private videoName?: string;
   private videoMetadata?: {
     width: number;
@@ -34,7 +36,7 @@ export class PoseExporterService {
   // 全フレームから重複したポーズを削除するかどうか
   private readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
 
-  constructor(private snackBar: MatSnackBar) {}
+  constructor() {}
 
   init(videoName: string) {
     this.videoName = videoName;
@@ -230,10 +232,6 @@ export class PoseExporterService {
   }
 
   downloadAsJson() {
-    const message = this.snackBar.open(
-      '保存するデータを生成しています... しばらくお待ちください...'
-    );
-
     const blob = new Blob([this.getJson()], {
       type: 'application/json',
     });
@@ -243,15 +241,9 @@ export class PoseExporterService {
     a.target = '_blank';
     a.download = `${this.videoName}-poses.json`;
     a.click();
-
-    message.dismiss();
   }
 
   async downloadAsZip() {
-    const message = this.snackBar.open(
-      '保存するデータを生成しています... しばらくお待ちください...'
-    );
-
     const jsZip = new JSZip();
     jsZip.file('poses.json', this.getJson());
 
@@ -278,8 +270,6 @@ export class PoseExporterService {
     a.target = '_blank';
     a.download = `${this.videoName}-poses.zip`;
     a.click();
-
-    message.dismiss();
   }
 
   private getJson(): string {

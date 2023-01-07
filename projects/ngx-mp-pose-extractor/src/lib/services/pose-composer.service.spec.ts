@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { PoseExtractorService } from './pose-extractor.service';
+import { PoseComposerService } from './pose-composer.service';
 
-describe('ExtractorService', () => {
-  let service: PoseExtractorService;
+describe('PoseComposerService', () => {
+  let service: PoseComposerService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(PoseExtractorService);
+    service = TestBed.inject(PoseComposerService);
   });
 
   it('should be created', () => {

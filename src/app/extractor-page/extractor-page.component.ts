@@ -8,15 +8,15 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { GpuBuffer, Results } from '@mediapipe/holistic';
+import { PoseExtractorService } from 'ngx-mp-pose-extractor';
+import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
-import { PoseExporterService } from '../shared/pose-exporter.service';
-import { PoseExtractorService } from '../shared/pose-extractor.service';
 
 @Component({
   selector: 'app-extractor-page',
   templateUrl: './extractor-page.component.html',
   styleUrls: ['../shared/shared.scss', './extractor-page.component.scss'],
-  providers: [PoseExtractorService, PoseExporterService],
+  providers: [PoseExtractorService, PoseComposerService],
 })
 export class ExtractorPageComponent implements OnInit, OnDestroy {
   @ViewChild('sourceVideo')
@@ -35,15 +35,15 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   private onResultsEventEmitterSubscription!: Subscription;
 
   constructor(
-    public poseExporterService: PoseExporterService,
+    public poseComposerService: PoseComposerService,
+    private poseExtractorService: PoseExtractorService,
     private domSanitizer: DomSanitizer,
-    private extractorService: PoseExtractorService,
     private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
     this.onResultsEventEmitterSubscription =
-      this.extractorService.onResultsEventEmitter.subscribe(
+      this.poseExtractorService.onResultsEventEmitter.subscribe(
         (results: { mpResults: Results; posePreviewImageDataUrl: string }) => {
           this.onPoseDetected(
             results.mpResults,
@@ -60,12 +60,12 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   onSourceVideoEnded(event: any) {
-    this.poseExporterService.finalize();
+    this.poseComposerService.finalize();
 
     this.state = 'completed';
     const message = this.snackBar.open('検出が完了しました', '保存');
     message.onAction().subscribe(() => {
-      this.poseExporterService.downloadAsZip();
+      this.downloadPosesAsZip();
     });
   }
 
@@ -82,15 +82,15 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
 
     this.state = 'processing';
-    this.poseExporterService.init(videoName);
+    this.poseComposerService.init(videoName);
 
     await this.onVideoFrame();
 
     this.posePreviewMediaStream =
-      this.extractorService.getPosePreviewMediaStream();
+      this.poseExtractorService.getPosePreviewMediaStream();
 
     this.handPreviewMediaStream =
-      this.extractorService.getHandPreviewMediaStream();
+      this.poseExtractorService.getHandPreviewMediaStream();
   }
 
   async onVideoFrame() {
@@ -104,7 +104,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    await this.extractorService.onVideoFrame(videoElement);
+    await this.poseExtractorService.onVideoFrame(videoElement);
     await new Promise(requestAnimationFrame);
     this.onVideoFrame();
   }
@@ -121,7 +121,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
       this.sourceVideoElement?.nativeElement.duration * 1000
     );
 
-    this.poseExporterService.pushPose(
+    this.poseComposerService.pushPose(
       sourceVideoTimeMiliseconds,
       posePreviewImageDataUrl,
       videoElement.videoWidth,
@@ -129,5 +129,33 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
       sourceVideoDurationMiliseconds,
       results
     );
+  }
+
+  public downloadPosesAsZip() {
+    const message = this.snackBar.open('保存するデータを生成しています...');
+    try {
+      this.poseComposerService.downloadAsZip();
+    } catch (e: any) {
+      console.error(e);
+      message.dismiss();
+      this.snackBar.open('エラー: ' + e.toString(), 'OK');
+      return;
+    }
+
+    message.dismiss();
+  }
+
+  public downloadPosesAsJson() {
+    const message = this.snackBar.open('保存するデータを生成しています...');
+    try {
+      this.poseComposerService.downloadAsJson();
+    } catch (e: any) {
+      console.error(e);
+      message.dismiss();
+      this.snackBar.open('エラー: ' + e.toString(), 'OK');
+      return;
+    }
+
+    message.dismiss();
   }
 }

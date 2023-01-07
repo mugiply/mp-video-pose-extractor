@@ -1,0 +1,15 @@
+{
+  "name": "ngx-mp-pose-extractor",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^15.0.0",
+    "@angular/core": "^15.0.0",
+    "@mediapipe/drawing_utils": "^0.3.1620248257",
+    "@mediapipe/holistic": "^0.5.1635989137",
+    "cos-similarity": "^1.1.1",
+    "jszip": "^3.10.1"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

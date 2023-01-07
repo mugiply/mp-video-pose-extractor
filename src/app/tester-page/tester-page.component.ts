@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
-import { PoseExporterService } from '../shared/pose-exporter.service';
+import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 
 @Component({
   selector: 'app-tester-page',
   templateUrl: './tester-page.component.html',
   styleUrls: ['../shared/shared.scss', './tester-page.component.scss'],
-  providers: [PoseExporterService],
+  providers: [PoseComposerService],
 })
 export class TesterPageComponent implements OnInit {
   public poseFileName?: string;

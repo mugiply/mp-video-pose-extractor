@@ -61,7 +61,7 @@
         ポーズ数:
         <ng-container *ngIf="state === 'initial'">-</ng-container>
         <ng-container *ngIf="state === 'processing' || state === 'completed'">
-          {{ poseExporterService.getNumberOfPoses() }}
+          {{ poseComposerService.getNumberOfPoses() }}
         </ng-container>
         <!---->
       </mat-card-subtitle>
@@ -75,7 +75,7 @@
         mat-button
         color="primary"
         matTooltip="ポーズおよびフレーム画像を ZIP ファイルとして保存します"
-        (click)="poseExporterService.downloadAsZip()"
+        (click)="downloadPosesAsZip()"
         [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
@@ -85,7 +85,7 @@
       <button
         mat-button
         matTooltip="ポーズのみを JSON ファイルとして保存します"
-        (click)="poseExporterService.downloadAsJson()"
+        (click)="downloadPosesAsJson()"
         [disabled]="state !== 'completed'"
       >
         <mat-icon>download</mat-icon>
@@ -155,7 +155,7 @@
     <mat-card-content>
       <div
         class="preview-video-container"
-        *ngFor="let pose of poseExporterService.getPoses().slice().reverse()"
+        *ngFor="let pose of poseComposerService.getPoses().slice().reverse()"
       >
         <p class="label">{{ pose.t }}</p>
         <img class="preview-video" [src]="pose.frameImageDataUrl" />

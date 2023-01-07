@@ -101,6 +101,39 @@
           }
         }
       }
+    },
+    "ngx-mp-pose-extractor": {
+      "projectType": "library",
+      "root": "projects/ngx-mp-pose-extractor",
+      "sourceRoot": "projects/ngx-mp-pose-extractor/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/ngx-mp-pose-extractor/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/ngx-mp-pose-extractor/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/ngx-mp-pose-extractor/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "tsConfig": "projects/ngx-mp-pose-extractor/tsconfig.spec.json",
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ]
+          }
+        }
+      }
     }
   }
 }
