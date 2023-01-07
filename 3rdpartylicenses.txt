@@ -777,6 +777,8 @@ copy of the Program in return for a fee.
                      END OF TERMS AND CONDITIONS
 
 
+ngx-mp-pose-extractor
+
 rxjs
 Apache-2.0
                                Apache License
