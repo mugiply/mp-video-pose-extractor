@@ -12,6 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Results } from '@mediapipe/holistic';
 import { PoseExtractorService, PoseItem } from 'ngx-mp-pose-extractor';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
+import { Pose } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -35,6 +36,8 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
   public cameraStream?: MediaStream;
   public cameraPosePreviewStream?: MediaStream;
+
+  public pose?: Pose;
 
   public isPoseLoaded = false;
 
@@ -83,11 +86,13 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
     const message = this.snackBar.open('ポーズファイルを読み込んでいます...');
 
+    this.pose = new Pose();
+
     try {
       if (this.poseFileType === 'zip' && this.poseZipArrayBuffer) {
-        await this.poseComposerService.loadZip(this.poseZipArrayBuffer);
+        await this.pose.loadZip(this.poseZipArrayBuffer);
       } else if (this.poseJson) {
-        this.poseComposerService.loadJson(this.poseJson);
+        this.pose.loadJson(this.poseJson);
       } else {
         throw 'Invalid poseFileType';
       }
@@ -101,7 +106,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
     message.dismiss();
     this.snackBar.open(
-      `${this.poseComposerService.getNumberOfPoses()} 件のポーズを読み込みました`
+      `${this.pose.getNumberOfPoses()} 件のポーズを読み込みました`
     );
 
     if (!this.isPoseLoaded) {
@@ -149,6 +154,8 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
     mpResults: Results,
     posePreviewImageDataUrl: string
   ) {
-    this.similarPoses = this.poseComposerService.getSimilarPoses(mpResults);
+    if (!this.pose) return;
+
+    this.similarPoses = this.pose.getSimilarPoses(mpResults);
   }
 }
