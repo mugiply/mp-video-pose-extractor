@@ -294,6 +294,46 @@ Pose.POSE_VECTOR_MAPPINGS = [
 ];
 
 /**
+ * ポーズを管理するためのサービス
+ */
+class PoseComposerService {
+    constructor() { }
+    init(videoName) {
+        const pose = new Pose();
+        pose.setVideoName(videoName);
+        return pose;
+    }
+    downloadAsJson(pose) {
+        const blob = new Blob([pose.getJson()], {
+            type: 'application/json',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.download = `${pose.getVideoName()}-poses.json`;
+        a.click();
+    }
+    async downloadAsZip(pose) {
+        const content = await pose.getZip();
+        const url = window.URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.download = `${pose.getVideoName()}-poses.zip`;
+        a.click();
+    }
+}
+PoseComposerService.ɵfac = i0.ɵɵngDeclareFactory({ minVersion: "12.0.0", version: "15.0.4", ngImport: i0, type: PoseComposerService, deps: [], target: i0.ɵɵFactoryTarget.Injectable });
+PoseComposerService.ɵprov = i0.ɵɵngDeclareInjectable({ minVersion: "12.0.0", version: "15.0.4", ngImport: i0, type: PoseComposerService, providedIn: 'root' });
+i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImport: i0, type: PoseComposerService, decorators: [{
+            type: Injectable,
+            args: [{
+                    providedIn: 'root',
+                }]
+        }], ctorParameters: function () { return []; } });
+
+/**
  * MediaPipe を用いて動画からポーズを抽出するためのサービス
  *
  * ※ シングルトンなサービスではないため、Component で providers に指定して使用することを想定
@@ -487,5 +527,5 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
  * Generated bundle index. Do not edit.
  */
 
-export { NgxMpPoseExtractorComponent, NgxMpPoseExtractorModule, NgxMpPoseExtractorService, Pose, PoseExtractorService };
+export { NgxMpPoseExtractorComponent, NgxMpPoseExtractorModule, NgxMpPoseExtractorService, Pose, PoseComposerService, PoseExtractorService };
 //# sourceMappingURL=ngx-mp-pose-extractor.mjs.map
