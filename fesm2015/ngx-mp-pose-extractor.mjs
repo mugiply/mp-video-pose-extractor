@@ -153,11 +153,18 @@ class Pose {
         }
         this.isFinalized = true;
     }
-    getSimilarPoses(results, threshold) {
+    getSimilarPoses(results, threshold = 0.9) {
         const poseVector = Pose.getPoseVector(results.ea);
         if (!poseVector)
             throw 'Could not get the pose vector';
-        return this.poses.filter((p) => Pose.isSimilarPose(p.vectors, poseVector, threshold));
+        const poses = [];
+        for (const pose of this.poses) {
+            const similarity = Pose.getPoseSimilarity(pose.vectors, poseVector);
+            if (threshold <= similarity) {
+                poses.push(Object.assign(Object.assign({}, pose), { similarity: similarity }));
+            }
+        }
+        return poses;
     }
     static getPoseVector(poseLandmarks) {
         return {
@@ -197,7 +204,7 @@ class Pose {
     }
     static isSimilarPose(poseVectorA, poseVectorB, threshold = 0.9) {
         let isSimilar = false;
-        const similarity = this.getPoseSimilarity(poseVectorA, poseVectorB);
+        const similarity = Pose.getPoseSimilarity(poseVectorA, poseVectorB);
         if (similarity >= threshold)
             isSimilar = true;
         // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);

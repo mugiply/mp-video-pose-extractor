@@ -1,6 +1,7 @@
 import { Results } from '@mediapipe/holistic';
 import { PoseItem } from '../interfaces/pose-item';
 import { PoseVector } from '../interfaces/pose-vector';
+import { SimilarPoseItem } from '../interfaces/matched-pose-item';
 export declare class Pose {
     generator?: string;
     version?: number;
@@ -17,7 +18,7 @@ export declare class Pose {
     getPoses(): PoseItem[];
     pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): void;
-    getSimilarPoses(results: Results, threshold?: number): PoseItem[];
+    getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
     static getPoseVector(poseLandmarks: {
         x: number;
         y: number;
