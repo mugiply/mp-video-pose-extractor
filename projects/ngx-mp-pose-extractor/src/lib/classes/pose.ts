@@ -22,8 +22,6 @@ export class Pose {
 
   public static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
 
-  public static readonly IS_SHRINK_RAW_POSE_DATA = false;
-
   public static readonly POSE_VECTOR_MAPPINGS = [
     'rightWristToRightElbow',
     'rightElbowToRightShoulder',
@@ -67,6 +65,7 @@ export class Pose {
   pushPose(
     videoTimeMiliseconds: number,
     frameImageJpegDataUrl: string | undefined,
+    poseImageJpegDataUrl: string | undefined,
     videoWidth: number,
     videoHeight: number,
     videoDuration: number,
@@ -103,6 +102,7 @@ export class Pose {
       }),
       vectors: poseVector,
       frameImageDataUrl: frameImageJpegDataUrl,
+      poseImageDataUrl: poseImageJpegDataUrl,
     };
 
     if (1 <= this.poses.length) {
@@ -229,19 +229,33 @@ export class Pose {
     jsZip.file('poses.json', this.getJson());
 
     for (const pose of this.poses) {
-      if (!pose.frameImageDataUrl) continue;
-      try {
-        const index =
-          pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
-        const base64 = pose.frameImageDataUrl.substring(index);
-
-        jsZip.file(`snapshot-${pose.t}.jpg`, base64, { base64: true });
-      } catch (error) {
-        console.warn(
-          `[PoseExporterService] push - Could not push frame image`,
-          error
-        );
-        throw error;
+      if (pose.frameImageDataUrl) {
+        try {
+          const index =
+            pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
+          const base64 = pose.frameImageDataUrl.substring(index);
+          jsZip.file(`frame-${pose.t}.jpg`, base64, { base64: true });
+        } catch (error) {
+          console.warn(
+            `[PoseExporterService] push - Could not push frame image`,
+            error
+          );
+          throw error;
+        }
+      }
+      if (pose.poseImageDataUrl) {
+        try {
+          const index =
+            pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
+          const base64 = pose.poseImageDataUrl.substring(index);
+          jsZip.file(`pose-${pose.t}.jpg`, base64, { base64: true });
+        } catch (error) {
+          console.warn(
+            `[PoseExporterService] push - Could not push frame image`,
+            error
+          );
+          throw error;
+        }
       }
     }
 
@@ -274,13 +288,11 @@ export class Pose {
 
         return {
           t: pose.t,
-          pose: Pose.IS_SHRINK_RAW_POSE_DATA ? [] : pose.pose,
+          pose: pose.pose,
           vectors: poseVector,
         };
       }),
-      poseLandmarkMapppings: Pose.IS_SHRINK_RAW_POSE_DATA
-        ? []
-        : poseLandmarkMappings,
+      poseLandmarkMapppings: poseLandmarkMappings,
     };
 
     return JSON.stringify(json);
@@ -327,13 +339,24 @@ export class Pose {
 
     if (includeImages) {
       for (const pose of this.poses) {
-        const frameImageFileName = `snapshot-${pose.t}.jpg`;
-        const imageBase64 = await zip.file(frameImageFileName)?.async('base64');
-        if (imageBase64 === undefined && !pose.frameImageDataUrl) {
-          continue;
+        if (!pose.frameImageDataUrl) {
+          const frameImageFileName = `frame-${pose.t}.jpg`;
+          const imageBase64 = await zip
+            .file(frameImageFileName)
+            ?.async('base64');
+          if (imageBase64) {
+            pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+          }
         }
-
-        pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+        if (!pose.poseImageDataUrl) {
+          const poseImageFileName = `pose-${pose.t}.jpg`;
+          const imageBase64 = await zip
+            .file(poseImageFileName)
+            ?.async('base64');
+          if (imageBase64) {
+            pose.poseImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+          }
+        }
       }
     }
   }

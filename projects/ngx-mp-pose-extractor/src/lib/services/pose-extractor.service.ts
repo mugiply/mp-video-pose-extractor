@@ -21,6 +21,7 @@ import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
 export class PoseExtractorService {
   public onResultsEventEmitter: EventEmitter<{
     mpResults: Results;
+    sourceImageDataUrl: string;
     posePreviewImageDataUrl: string;
   }> = new EventEmitter();
 
@@ -31,6 +32,8 @@ export class PoseExtractorService {
 
   private handPreviewCanvasElement?: HTMLCanvasElement;
   private handPreviewCanvasContext?: CanvasRenderingContext2D;
+
+  private readonly IMAGE_JPEG_QUALITY = 0.8;
 
   constructor() {
     this.init();
@@ -128,6 +131,12 @@ export class PoseExtractorService {
       0,
       this.posePreviewCanvasElement.width,
       this.posePreviewCanvasElement.height
+    );
+
+    // 検出に使用したフレーム画像を保持
+    const sourceImageDataUrl = this.posePreviewCanvasElement.toDataURL(
+      'image/jpeg',
+      this.IMAGE_JPEG_QUALITY
     );
 
     // 肘と手をつなぐ線を描画
@@ -268,8 +277,11 @@ export class PoseExtractorService {
     // イベントを送出
     this.onResultsEventEmitter.emit({
       mpResults: results,
-      posePreviewImageDataUrl:
-        this.posePreviewCanvasElement.toDataURL('image/jpeg'),
+      sourceImageDataUrl: sourceImageDataUrl,
+      posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL(
+        'image/jpeg',
+        this.IMAGE_JPEG_QUALITY
+      ),
     });
 
     // 完了
