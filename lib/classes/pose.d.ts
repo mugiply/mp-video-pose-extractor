@@ -17,13 +17,14 @@ export declare class Pose {
     getPoses(): PoseItem[];
     pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): void;
-    getSimilarPoses(results: Results): PoseItem[];
+    getSimilarPoses(results: Results, threshold?: number): PoseItem[];
     static getPoseVector(poseLandmarks: {
         x: number;
         y: number;
         z: number;
     }[]): PoseVector | undefined;
     static isSimilarPose(poseVectorA: PoseVector, poseVectorB: PoseVector, threshold?: number): boolean;
+    static getPoseSimilarity(poseVectorA: PoseVector, poseVectorB: PoseVector): number;
     getZip(): Promise<Blob>;
     getJson(): string;
     loadJson(json: string | any): void;

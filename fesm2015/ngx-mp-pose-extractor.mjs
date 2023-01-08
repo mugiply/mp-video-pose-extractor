@@ -135,11 +135,11 @@ class Pose {
         }
         this.isFinalized = true;
     }
-    getSimilarPoses(results) {
+    getSimilarPoses(results, threshold) {
         const poseVector = Pose.getPoseVector(results.ea);
         if (!poseVector)
             throw 'Could not get the pose vector';
-        return this.poses.filter((p) => Pose.isSimilarPose(p.vectors, poseVector));
+        return this.poses.filter((p) => Pose.isSimilarPose(p.vectors, poseVector, threshold));
     }
     static getPoseVector(poseLandmarks) {
         return {
@@ -178,18 +178,22 @@ class Pose {
         };
     }
     static isSimilarPose(poseVectorA, poseVectorB, threshold = 0.9) {
+        let isSimilar = false;
+        const similarity = this.getPoseSimilarity(poseVectorA, poseVectorB);
+        if (similarity >= threshold)
+            isSimilar = true;
+        // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);
+        return isSimilar;
+    }
+    static getPoseSimilarity(poseVectorA, poseVectorB) {
         const cosSimilarities = {
             leftWristToLeftElbow: cosSimilarity(poseVectorA.leftWristToLeftElbow, poseVectorB.leftWristToLeftElbow),
             leftElbowToLeftShoulder: cosSimilarity(poseVectorA.leftElbowToLeftShoulder, poseVectorB.leftElbowToLeftShoulder),
             rightWristToRightElbow: cosSimilarity(poseVectorA.rightWristToRightElbow, poseVectorB.rightWristToRightElbow),
             rightElbowToRightShoulder: cosSimilarity(poseVectorA.rightElbowToRightShoulder, poseVectorB.rightElbowToRightShoulder),
         };
-        let isSimilar = false;
         const cosSimilaritiesSum = Object.values(cosSimilarities).reduce((sum, value) => sum + value, 0);
-        if (cosSimilaritiesSum >= threshold * Object.keys(cosSimilarities).length)
-            isSimilar = true;
-        console.log(`[Pose] isSimilarPose`, isSimilar, cosSimilarities);
-        return isSimilar;
+        return cosSimilaritiesSum / Object.keys(cosSimilarities).length;
     }
     getZip() {
         return __awaiter(this, void 0, void 0, function* () {
