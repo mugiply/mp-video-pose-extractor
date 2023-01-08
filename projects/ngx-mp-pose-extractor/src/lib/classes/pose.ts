@@ -63,6 +63,11 @@ export class Pose {
     return this.poses;
   }
 
+  getPoseByTime(timeMiliseconds: number): PoseItem | undefined {
+    if (this.poses === undefined) return undefined;
+    return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
+  }
+
   pushPose(
     videoTimeMiliseconds: number,
     frameImageJpegDataUrl: string | undefined,
