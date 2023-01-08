@@ -7,6 +7,7 @@ import { PoseVector } from '../interfaces/pose-vector';
 
 // @ts-ignore
 import cosSimilarity from 'cos-similarity';
+import { SimilarPoseItem } from '../interfaces/matched-pose-item';
 
 export class Pose {
   public generator?: string;
@@ -164,13 +165,25 @@ export class Pose {
     this.isFinalized = true;
   }
 
-  getSimilarPoses(results: Results, threshold?: number): PoseItem[] {
+  getSimilarPoses(
+    results: Results,
+    threshold: number = 0.9
+  ): SimilarPoseItem[] {
     const poseVector = Pose.getPoseVector((results as any).ea);
     if (!poseVector) throw 'Could not get the pose vector';
 
-    return this.poses.filter((p) =>
-      Pose.isSimilarPose(p.vectors, poseVector, threshold)
-    );
+    const poses = [];
+    for (const pose of this.poses) {
+      const similarity = Pose.getPoseSimilarity(pose.vectors, poseVector);
+      if (threshold <= similarity) {
+        poses.push({
+          ...pose,
+          similarity: similarity,
+        });
+      }
+    }
+
+    return poses;
   }
 
   static getPoseVector(
@@ -218,7 +231,7 @@ export class Pose {
     threshold = 0.9
   ): boolean {
     let isSimilar = false;
-    const similarity = this.getPoseSimilarity(poseVectorA, poseVectorB);
+    const similarity = Pose.getPoseSimilarity(poseVectorA, poseVectorB);
     if (similarity >= threshold) isSimilar = true;
 
     // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);

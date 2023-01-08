@@ -14,6 +14,7 @@ import { PoseExtractorService, PoseItem } from 'ngx-mp-pose-extractor';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
 import { Pose } from 'projects/ngx-mp-pose-extractor/src/public-api';
+import { SimilarPoseItem } from 'dist/ngx-mp-pose-extractor/lib/interfaces/matched-pose-item';
 
 @Component({
   selector: 'app-tester',
@@ -41,7 +42,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
   public isPoseLoaded = false;
 
-  public similarPoses?: PoseItem[];
+  public similarPoses?: SimilarPoseItem[];
 
   private onResultsEventEmitterSubscription?: Subscription;
 
@@ -156,6 +157,18 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
   ) {
     if (!this.pose) return;
 
-    this.similarPoses = this.pose.getSimilarPoses(mpResults);
+    let similarPoses = this.pose.getSimilarPoses(mpResults, 0.8);
+    if (0 < similarPoses.length) {
+      // ソート
+      similarPoses = similarPoses.sort((a, b) => {
+        return b.similarity - a.similarity;
+      });
+      // 小数点以下第二位で切り捨て
+      similarPoses.map((similarPose) => {
+        similarPose.similarity = Math.floor(similarPose.similarity * 100) / 100;
+        return similarPose;
+      });
+    }
+    this.similarPoses = similarPoses;
   }
 }
