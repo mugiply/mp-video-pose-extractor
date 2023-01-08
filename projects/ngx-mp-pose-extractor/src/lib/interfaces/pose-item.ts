@@ -1,7 +1,8 @@
 import { PoseVector } from './pose-vector';
 
 export interface PoseItem {
-  t: number;
+  timeMiliseconds: number;
+  durationMiliseconds: number;
   pose?: number[][];
   vectors: PoseVector;
   frameImageDataUrl?: string;

@@ -157,7 +157,7 @@
         class="preview-video-container"
         *ngFor="let pose of pose?.getPoses()?.slice()?.reverse()"
       >
-        <p class="label">{{ pose.t }}</p>
+        <p class="label">{{ pose.timeMiliseconds }}</p>
         <img class="preview-video" [src]="pose.frameImageDataUrl" />
       </div>
     </mat-card-content>
