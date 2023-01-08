@@ -141,11 +141,13 @@ export class Pose {
     this.isFinalized = true;
   }
 
-  getSimilarPoses(results: Results): PoseItem[] {
+  getSimilarPoses(results: Results, threshold?: number): PoseItem[] {
     const poseVector = Pose.getPoseVector((results as any).ea);
     if (!poseVector) throw 'Could not get the pose vector';
 
-    return this.poses.filter((p) => Pose.isSimilarPose(p.vectors, poseVector));
+    return this.poses.filter((p) =>
+      Pose.isSimilarPose(p.vectors, poseVector, threshold)
+    );
   }
 
   static getPoseVector(
@@ -192,6 +194,19 @@ export class Pose {
     poseVectorB: PoseVector,
     threshold = 0.9
   ): boolean {
+    let isSimilar = false;
+    const similarity = this.getPoseSimilarity(poseVectorA, poseVectorB);
+    if (similarity >= threshold) isSimilar = true;
+
+    // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);
+
+    return isSimilar;
+  }
+
+  static getPoseSimilarity(
+    poseVectorA: PoseVector,
+    poseVectorB: PoseVector
+  ): number {
     const cosSimilarities = {
       leftWristToLeftElbow: cosSimilarity(
         poseVectorA.leftWristToLeftElbow,
@@ -211,17 +226,11 @@ export class Pose {
       ),
     };
 
-    let isSimilar = false;
     const cosSimilaritiesSum = Object.values(cosSimilarities).reduce(
       (sum, value) => sum + value,
       0
     );
-    if (cosSimilaritiesSum >= threshold * Object.keys(cosSimilarities).length)
-      isSimilar = true;
-
-    console.log(`[Pose] isSimilarPose`, isSimilar, cosSimilarities);
-
-    return isSimilar;
+    return cosSimilaritiesSum / Object.keys(cosSimilarities).length;
   }
 
   public async getZip(): Promise<Blob> {
