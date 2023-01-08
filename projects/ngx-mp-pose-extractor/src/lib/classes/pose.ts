@@ -6,7 +6,7 @@ import { PoseJsonItem } from '../interfaces/pose-json-item';
 import { PoseVector } from '../interfaces/pose-vector';
 
 // @ts-ignore
-const cosSimilarity = require('cos-similarity');
+import cosSimilarity from 'cos-similarity';
 
 export class Pose {
   public generator?: string;
@@ -286,8 +286,8 @@ export class Pose {
     return JSON.stringify(json);
   }
 
-  loadJson(json: string) {
-    const parsedJson = JSON.parse(json);
+  loadJson(json: string | any) {
+    const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
 
     if (parsedJson.generator !== 'mp-video-pose-extractor') {
       throw '不正なファイル';
