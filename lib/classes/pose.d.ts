@@ -27,6 +27,6 @@ export declare class Pose {
     static isSimilarPose(poseVectorA: PoseVector, poseVectorB: PoseVector, threshold?: number): boolean;
     getZip(): Promise<Blob>;
     getJson(): string;
-    loadJson(json: string): void;
+    loadJson(json: string | any): void;
     loadZip(buffer: ArrayBuffer, includeImages?: boolean): Promise<void>;
 }

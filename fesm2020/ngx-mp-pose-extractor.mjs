@@ -240,7 +240,7 @@ class Pose {
         return JSON.stringify(json);
     }
     loadJson(json) {
-        const parsedJson = JSON.parse(json);
+        const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
         if (parsedJson.generator !== 'mp-video-pose-extractor') {
             throw '不正なファイル';
         }

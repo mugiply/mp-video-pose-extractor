@@ -1,5 +1,5 @@
 export interface PoseJsonItem {
     t: number;
-    pose: number[][];
+    pose?: number[][];
     vectors: number[][];
 }
