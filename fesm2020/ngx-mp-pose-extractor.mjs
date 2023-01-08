@@ -97,7 +97,8 @@ class Pose {
             return;
         }
         const pose = {
-            t: videoTimeMiliseconds,
+            timeMiliseconds: videoTimeMiliseconds,
+            durationMiliseconds: -1,
             pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
                 return [landmark.x, landmark.y, landmark.z, landmark.visibility];
             }),
@@ -110,12 +111,20 @@ class Pose {
             if (Pose.isSimilarPose(lastPose.vectors, pose.vectors)) {
                 return;
             }
+            // 前回のポーズの持続時間を設定
+            const poseDurationMiliseconds = videoTimeMiliseconds - lastPose.timeMiliseconds;
+            this.poses[this.poses.length - 1].durationMiliseconds =
+                poseDurationMiliseconds;
         }
         this.poses.push(pose);
     }
     finalize() {
+        if (0 == this.poses.length) {
+            this.isFinalized = true;
+            return;
+        }
+        // 全ポーズを比較して類似ポーズを削除
         if (Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
-            // 全ポーズを走査して、類似するポーズを削除する
             const newPoses = [];
             for (const poseA of this.poses) {
                 let isDuplicated = false;
@@ -131,6 +140,15 @@ class Pose {
             }
             console.info(`[Pose] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
             this.poses = newPoses;
+        }
+        // 最後のポーズの持続時間を設定
+        if (1 <= this.poses.length) {
+            const lastPose = this.poses[this.poses.length - 1];
+            if (lastPose.durationMiliseconds == -1) {
+                const poseDurationMiliseconds = this.videoMetadata.duration - lastPose.timeMiliseconds;
+                this.poses[this.poses.length - 1].durationMiliseconds =
+                    poseDurationMiliseconds;
+            }
         }
         this.isFinalized = true;
     }
@@ -202,7 +220,9 @@ class Pose {
                 try {
                     const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                     const base64 = pose.frameImageDataUrl.substring(index);
-                    jsZip.file(`frame-${pose.t}.jpg`, base64, { base64: true });
+                    jsZip.file(`frame-${pose.timeMiliseconds}.jpg`, base64, {
+                        base64: true,
+                    });
                 }
                 catch (error) {
                     console.warn(`[PoseExporterService] push - Could not push frame image`, error);
@@ -213,7 +233,9 @@ class Pose {
                 try {
                     const index = pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
                     const base64 = pose.poseImageDataUrl.substring(index);
-                    jsZip.file(`pose-${pose.t}.jpg`, base64, { base64: true });
+                    jsZip.file(`pose-${pose.timeMiliseconds}.jpg`, base64, {
+                        base64: true,
+                    });
                 }
                 catch (error) {
                     console.warn(`[PoseExporterService] push - Could not push frame image`, error);
@@ -244,7 +266,8 @@ class Pose {
                     poseVector.push(pose.vectors[key]);
                 }
                 return {
-                    t: pose.t,
+                    t: pose.timeMiliseconds,
+                    d: pose.durationMiliseconds,
                     pose: pose.pose,
                     vectors: poseVector,
                 };
@@ -268,7 +291,8 @@ class Pose {
                 poseVector[key] = poseJsonItem.vectors[index];
             });
             return {
-                t: poseJsonItem.t,
+                timeMiliseconds: poseJsonItem.t,
+                durationMiliseconds: poseJsonItem.d,
                 pose: poseJsonItem.pose,
                 vectors: poseVector,
                 frameImageDataUrl: undefined,
@@ -276,7 +300,9 @@ class Pose {
         });
     }
     async loadZip(buffer, includeImages = true) {
+        console.log(`[Pose] loadZip...`, JSZip);
         const jsZip = new JSZip();
+        console.log(`[Pose] init...`);
         const zip = await jsZip.loadAsync(buffer, { base64: false });
         if (!zip)
             throw 'ZIPファイルを読み込めませんでした';
@@ -288,7 +314,7 @@ class Pose {
         if (includeImages) {
             for (const pose of this.poses) {
                 if (!pose.frameImageDataUrl) {
-                    const frameImageFileName = `frame-${pose.t}.jpg`;
+                    const frameImageFileName = `frame-${pose.timeMiliseconds}.jpg`;
                     const imageBase64 = await zip
                         .file(frameImageFileName)
                         ?.async('base64');
@@ -297,7 +323,7 @@ class Pose {
                     }
                 }
                 if (!pose.poseImageDataUrl) {
-                    const poseImageFileName = `pose-${pose.t}.jpg`;
+                    const poseImageFileName = `pose-${pose.timeMiliseconds}.jpg`;
                     const imageBase64 = await zip
                         .file(poseImageFileName)
                         ?.async('base64');
