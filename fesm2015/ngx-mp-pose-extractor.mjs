@@ -3,6 +3,7 @@ import { Injectable, Component, NgModule, EventEmitter } from '@angular/core';
 import { __awaiter } from 'tslib';
 import { POSE_LANDMARKS, Holistic, POSE_CONNECTIONS, POSE_LANDMARKS_LEFT, POSE_LANDMARKS_RIGHT, HAND_CONNECTIONS } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
+import cosSimilarity from 'cos-similarity';
 import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
 
 class NgxMpPoseExtractorService {
@@ -48,8 +49,6 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
                 }]
         }] });
 
-// @ts-ignore
-const cosSimilarity = require('cos-similarity');
 class Pose {
     constructor() {
         this.poses = [];
