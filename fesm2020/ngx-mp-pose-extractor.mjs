@@ -80,7 +80,7 @@ class Pose {
             return [];
         return this.poses;
     }
-    pushPose(videoTimeMiliseconds, frameImageJpegDataUrl, videoWidth, videoHeight, videoDuration, results) {
+    pushPose(videoTimeMiliseconds, frameImageJpegDataUrl, poseImageJpegDataUrl, videoWidth, videoHeight, videoDuration, results) {
         this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
         if (results.poseLandmarks === undefined)
             return;
@@ -103,6 +103,7 @@ class Pose {
             }),
             vectors: poseVector,
             frameImageDataUrl: frameImageJpegDataUrl,
+            poseImageDataUrl: poseImageJpegDataUrl,
         };
         if (1 <= this.poses.length) {
             const lastPose = this.poses[this.poses.length - 1];
@@ -193,16 +194,27 @@ class Pose {
         const jsZip = new JSZip();
         jsZip.file('poses.json', this.getJson());
         for (const pose of this.poses) {
-            if (!pose.frameImageDataUrl)
-                continue;
-            try {
-                const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
-                const base64 = pose.frameImageDataUrl.substring(index);
-                jsZip.file(`snapshot-${pose.t}.jpg`, base64, { base64: true });
+            if (pose.frameImageDataUrl) {
+                try {
+                    const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
+                    const base64 = pose.frameImageDataUrl.substring(index);
+                    jsZip.file(`frame-${pose.t}.jpg`, base64, { base64: true });
+                }
+                catch (error) {
+                    console.warn(`[PoseExporterService] push - Could not push frame image`, error);
+                    throw error;
+                }
             }
-            catch (error) {
-                console.warn(`[PoseExporterService] push - Could not push frame image`, error);
-                throw error;
+            if (pose.poseImageDataUrl) {
+                try {
+                    const index = pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
+                    const base64 = pose.poseImageDataUrl.substring(index);
+                    jsZip.file(`pose-${pose.t}.jpg`, base64, { base64: true });
+                }
+                catch (error) {
+                    console.warn(`[PoseExporterService] push - Could not push frame image`, error);
+                    throw error;
+                }
             }
         }
         return await jsZip.generateAsync({ type: 'blob' });
@@ -229,13 +241,11 @@ class Pose {
                 }
                 return {
                     t: pose.t,
-                    pose: Pose.IS_SHRINK_RAW_POSE_DATA ? [] : pose.pose,
+                    pose: pose.pose,
                     vectors: poseVector,
                 };
             }),
-            poseLandmarkMapppings: Pose.IS_SHRINK_RAW_POSE_DATA
-                ? []
-                : poseLandmarkMappings,
+            poseLandmarkMapppings: poseLandmarkMappings,
         };
         return JSON.stringify(json);
     }
@@ -273,18 +283,29 @@ class Pose {
         this.loadJson(json);
         if (includeImages) {
             for (const pose of this.poses) {
-                const frameImageFileName = `snapshot-${pose.t}.jpg`;
-                const imageBase64 = await zip.file(frameImageFileName)?.async('base64');
-                if (imageBase64 === undefined && !pose.frameImageDataUrl) {
-                    continue;
+                if (!pose.frameImageDataUrl) {
+                    const frameImageFileName = `frame-${pose.t}.jpg`;
+                    const imageBase64 = await zip
+                        .file(frameImageFileName)
+                        ?.async('base64');
+                    if (imageBase64) {
+                        pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+                    }
                 }
-                pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+                if (!pose.poseImageDataUrl) {
+                    const poseImageFileName = `pose-${pose.t}.jpg`;
+                    const imageBase64 = await zip
+                        .file(poseImageFileName)
+                        ?.async('base64');
+                    if (imageBase64) {
+                        pose.poseImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+                    }
+                }
             }
         }
     }
 }
 Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
-Pose.IS_SHRINK_RAW_POSE_DATA = false;
 Pose.POSE_VECTOR_MAPPINGS = [
     'rightWristToRightElbow',
     'rightElbowToRightShoulder',
@@ -340,6 +361,7 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
 class PoseExtractorService {
     constructor() {
         this.onResultsEventEmitter = new EventEmitter();
+        this.IMAGE_JPEG_QUALITY = 0.8;
         this.init();
     }
     getPosePreviewMediaStream() {
@@ -406,6 +428,8 @@ class PoseExtractorService {
         this.posePreviewCanvasContext.clearRect(0, 0, this.posePreviewCanvasElement.width, this.posePreviewCanvasElement.height);
         // 検出に使用したフレーム画像を描画
         this.posePreviewCanvasContext.drawImage(results.image, 0, 0, this.posePreviewCanvasElement.width, this.posePreviewCanvasElement.height);
+        // 検出に使用したフレーム画像を保持
+        const sourceImageDataUrl = this.posePreviewCanvasElement.toDataURL('image/jpeg', this.IMAGE_JPEG_QUALITY);
         // 肘と手をつなぐ線を描画
         this.posePreviewCanvasContext.lineWidth = 5;
         if (poseLandmarks) {
@@ -474,7 +498,8 @@ class PoseExtractorService {
         // イベントを送出
         this.onResultsEventEmitter.emit({
             mpResults: results,
-            posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL('image/jpeg'),
+            sourceImageDataUrl: sourceImageDataUrl,
+            posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL('image/jpeg', this.IMAGE_JPEG_QUALITY),
         });
         // 完了
         this.posePreviewCanvasContext.restore();

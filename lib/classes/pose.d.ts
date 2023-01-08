@@ -8,7 +8,6 @@ export declare class Pose {
     poses: PoseItem[];
     isFinalized?: boolean;
     static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
-    static readonly IS_SHRINK_RAW_POSE_DATA = false;
     static readonly POSE_VECTOR_MAPPINGS: string[];
     constructor();
     getVideoName(): string;
@@ -16,7 +15,7 @@ export declare class Pose {
     setVideoMetaData(width: number, height: number, duration: number): void;
     getNumberOfPoses(): number;
     getPoses(): PoseItem[];
-    pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
+    pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): void;
     getSimilarPoses(results: Results): PoseItem[];
     static getPoseVector(poseLandmarks: {

@@ -4,4 +4,5 @@ export interface PoseItem {
     pose?: number[][];
     vectors: PoseVector;
     frameImageDataUrl?: string;
+    poseImageDataUrl?: string;
 }
