@@ -49,9 +49,14 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.onResultsEventEmitterSubscription =
       this.poseExtractorService.onResultsEventEmitter.subscribe(
-        (results: { mpResults: Results; posePreviewImageDataUrl: string }) => {
+        (results: {
+          mpResults: Results;
+          sourceImageDataUrl: string;
+          posePreviewImageDataUrl: string;
+        }) => {
           this.onPoseDetected(
             results.mpResults,
+            results.sourceImageDataUrl,
             results.posePreviewImageDataUrl
           );
         }
@@ -115,7 +120,11 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     this.onVideoFrame();
   }
 
-  async onPoseDetected(results: Results, posePreviewImageDataUrl: string) {
+  async onPoseDetected(
+    results: Results,
+    sourceImageDataUrl: string,
+    posePreviewImageDataUrl: string
+  ) {
     if (!this.pose) return;
 
     const videoElement = this.sourceVideoElement?.nativeElement;
@@ -131,6 +140,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
     this.pose.pushPose(
       sourceVideoTimeMiliseconds,
+      sourceImageDataUrl,
       posePreviewImageDataUrl,
       videoElement.videoWidth,
       videoElement.videoHeight,
