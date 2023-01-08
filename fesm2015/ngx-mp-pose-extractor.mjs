@@ -81,6 +81,11 @@ class Pose {
             return [];
         return this.poses;
     }
+    getPoseByTime(timeMiliseconds) {
+        if (this.poses === undefined)
+            return undefined;
+        return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
+    }
     pushPose(videoTimeMiliseconds, frameImageJpegDataUrl, poseImageJpegDataUrl, videoWidth, videoHeight, videoDuration, results) {
         this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
         if (results.poseLandmarks === undefined)

@@ -16,6 +16,7 @@ export declare class Pose {
     setVideoMetaData(width: number, height: number, duration: number): void;
     getNumberOfPoses(): number;
     getPoses(): PoseItem[];
+    getPoseByTime(timeMiliseconds: number): PoseItem | undefined;
     pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): void;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
