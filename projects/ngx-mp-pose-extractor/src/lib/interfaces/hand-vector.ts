@@ -1,0 +1,32 @@
+export interface HandVector {
+  // 右腕
+  rightWristToRightElbow: number[];
+  rightElbowToRightShoulder: number[];
+  // 左腕
+  leftWristToLeftElbow: number[];
+  leftElbowToLeftShoulder: number[];
+  // 右親指
+  rightThumbTipToFirstJoint: number[];
+  rightThumbFirstJointToSecondsJoint: number[];
+  // 左親指
+  leftThumbTipToFirstJoint: number[];
+  leftThumbFirstJointToSecondsJoint: number[];
+  // 右人差し指
+  rightIndexFingerTipToFirstJoint: number[];
+  rightIndexFingerFirstJointToSecondsJoint: number[];
+  // 左人差し指
+  leftIndexFingerTipToFirstJoint: number[];
+  leftIndexFingerFirstJointToSecondsJoint: number[];
+  // 右中指
+  rightMiddleFingerTipToFirstJoint: number[];
+  rightMiddleFingerFirstJointToSecondsJoint: number[];
+  // 左中指
+  leftMiddleFingerTipToFirstJoint: number[];
+  leftMiddleFingerFirstJointToSecondsJoint: number[];
+  // 右小指
+  rightPinkyFingerTipToFirstJoint: number[];
+  rightPinkyFingerFirstJointToSecondsJoint: number[];
+  // 左小指
+  leftPinkyFingerTipToFirstJoint: number[];
+  leftPinkyFingerFirstJointToSecondsJoint: number[];
+}

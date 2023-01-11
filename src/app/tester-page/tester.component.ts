@@ -14,7 +14,7 @@ import { PoseExtractorService, PoseItem } from 'ngx-mp-pose-extractor';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
 import { Pose } from 'projects/ngx-mp-pose-extractor/src/public-api';
-import { SimilarPoseItem } from 'dist/ngx-mp-pose-extractor/lib/interfaces/matched-pose-item';
+import { SimilarPoseItem } from 'projects/ngx-mp-pose-extractor/src/lib/interfaces/matched-pose-item';
 
 @Component({
   selector: 'app-tester',
@@ -157,7 +157,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
   ) {
     if (!this.pose) return;
 
-    let similarPoses = this.pose.getSimilarPoses(mpResults, 0.8);
+    let similarPoses = this.pose.getSimilarPoses(mpResults, 0.7, 0.9);
     if (0 < similarPoses.length) {
       // ソート
       similarPoses = similarPoses.sort((a, b) => {
@@ -166,6 +166,14 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
       // 小数点以下第二位で切り捨て
       similarPoses.map((similarPose) => {
         similarPose.similarity = Math.floor(similarPose.similarity * 100) / 100;
+        if (similarPose.bodySimilarity) {
+          similarPose.bodySimilarity =
+            Math.floor(similarPose.bodySimilarity * 100) / 100;
+        }
+        if (similarPose.handSimilarity) {
+          similarPose.handSimilarity =
+            Math.floor(similarPose.handSimilarity * 100) / 100;
+        }
         return similarPose;
       });
     }

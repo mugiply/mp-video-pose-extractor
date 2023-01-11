@@ -35,7 +35,11 @@
   </mat-card-header>
   <mat-card-content>
     <div class="preview-video-container" *ngFor="let pose of similarPoses">
-      <p class="label">{{ pose.timeMiliseconds }} / {{ pose.similarity }}</p>
+      <p class="label" style="text-align: center">
+        <b>{{ pose.similarity }}</b> <br />
+        {{ pose.bodySimilarity }} /
+        {{ pose.handSimilarity }}
+      </p>
       <img
         class="preview-video"
         [src]="pose.frameImageDataUrl"
