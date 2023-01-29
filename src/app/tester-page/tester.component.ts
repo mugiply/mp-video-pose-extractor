@@ -13,7 +13,7 @@ import { Results } from '@mediapipe/holistic';
 import { PoseExtractorService } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
-import { Pose } from 'projects/ngx-mp-pose-extractor/src/public-api';
+import { PoseSet } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { SimilarPoseItem } from 'dist/ngx-mp-pose-extractor/lib/interfaces/matched-pose-item';
 
 @Component({
@@ -30,7 +30,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
   public poseZipArrayBuffer?: ArrayBuffer;
 
   @Input()
-  public poseJson?: string;
+  public poseSetJson?: string;
 
   @ViewChild('cameraVideo')
   public cameraVideoElement!: ElementRef;
@@ -38,7 +38,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
   public cameraStream?: MediaStream;
   public cameraPosePreviewStream?: MediaStream;
 
-  public pose?: Pose;
+  public poseSet?: PoseSet;
 
   public isPoseLoaded = false;
 
@@ -74,26 +74,26 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
     if (
       changes['poseFileType'] ||
       changes['poseZipArrayBuffer'] ||
-      changes['poseJson']
+      changes['poseSetJson']
     ) {
       this.loadPoses();
     }
   }
 
   private async loadPoses() {
-    if (!this.poseFileType || (!this.poseZipArrayBuffer && !this.poseJson)) {
+    if (!this.poseFileType || (!this.poseZipArrayBuffer && !this.poseSetJson)) {
       return;
     }
 
     const message = this.snackBar.open('ポーズファイルを読み込んでいます...');
 
-    this.pose = new Pose();
+    this.poseSet = new PoseSet();
 
     try {
       if (this.poseFileType === 'zip' && this.poseZipArrayBuffer) {
-        await this.pose.loadZip(this.poseZipArrayBuffer);
-      } else if (this.poseJson) {
-        this.pose.loadJson(this.poseJson);
+        await this.poseSet.loadZip(this.poseZipArrayBuffer);
+      } else if (this.poseSetJson) {
+        this.poseSet.loadJson(this.poseSetJson);
       } else {
         throw 'Invalid poseFileType';
       }
@@ -107,7 +107,7 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
 
     message.dismiss();
     this.snackBar.open(
-      `${this.pose.getNumberOfPoses()} 件のポーズを読み込みました`
+      `${this.poseSet.getNumberOfPoses()} 件のポーズを読み込みました`
     );
 
     if (!this.isPoseLoaded) {
@@ -155,9 +155,9 @@ export class TesterComponent implements OnInit, OnDestroy, OnChanges {
     mpResults: Results,
     posePreviewImageDataUrl: string
   ) {
-    if (!this.pose) return;
+    if (!this.poseSet) return;
 
-    let similarPoses = this.pose.getSimilarPoses(mpResults, 0.8);
+    let similarPoses = this.poseSet.getSimilarPoses(mpResults, 0.8);
     if (0 < similarPoses.length) {
       // ソート
       similarPoses = similarPoses.sort((a, b) => {

@@ -1,8 +1,8 @@
 import { POSE_LANDMARKS, Results } from '@mediapipe/holistic';
 import * as JSZip from 'jszip';
-import { PoseItem } from '../interfaces/pose-item';
-import { PoseJson } from '../interfaces/pose-json';
-import { PoseJsonItem } from '../interfaces/pose-json-item';
+import { PoseSetItem } from '../interfaces/pose-set-item';
+import { PoseSetJson } from '../interfaces/pose-set-json';
+import { PoseSetJsonItem } from '../interfaces/pose-set-json-item';
 import { PoseVector } from '../interfaces/pose-vector';
 
 // @ts-ignore
@@ -10,7 +10,7 @@ import cosSimilarity from 'cos-similarity';
 import { SimilarPoseItem } from '../interfaces/matched-pose-item';
 import { ImageTrimmer } from './internals/image-trimmer';
 
-export class Pose {
+export class PoseSet {
   public generator?: string;
   public version?: number;
   private videoMetadata!: {
@@ -19,7 +19,7 @@ export class Pose {
     height: number;
     duration: number;
   };
-  public poses: PoseItem[] = [];
+  public poses: PoseSetItem[] = [];
   public isFinalized?: boolean = false;
 
   public static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
@@ -70,12 +70,12 @@ export class Pose {
     return this.poses.length;
   }
 
-  getPoses(): PoseItem[] {
+  getPoses(): PoseSetItem[] {
     if (this.poses === undefined) return [];
     return this.poses;
   }
 
-  getPoseByTime(timeMiliseconds: number): PoseItem | undefined {
+  getPoseByTime(timeMiliseconds: number): PoseSetItem | undefined {
     if (this.poses === undefined) return undefined;
     return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
   }
@@ -98,22 +98,22 @@ export class Pose {
       : [];
     if (poseLandmarksWithWorldCoordinate.length === 0) {
       console.warn(
-        `[Pose] pushPose - Could not get the pose with the world coordinate`,
+        `[PoseSet] pushPose - Could not get the pose with the world coordinate`,
         results
       );
       return;
     }
 
-    const poseVector = Pose.getPoseVector(poseLandmarksWithWorldCoordinate);
+    const poseVector = PoseSet.getPoseVector(poseLandmarksWithWorldCoordinate);
     if (!poseVector) {
       console.warn(
-        `[Pose] pushPose - Could not get the pose vector`,
+        `[PoseSet] pushPose - Could not get the pose vector`,
         poseLandmarksWithWorldCoordinate
       );
       return;
     }
 
-    const pose: PoseItem = {
+    const pose: PoseSetItem = {
       timeMiliseconds: videoTimeMiliseconds,
       durationMiliseconds: -1,
       pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
@@ -126,7 +126,7 @@ export class Pose {
 
     if (1 <= this.poses.length) {
       const lastPose = this.poses[this.poses.length - 1];
-      if (Pose.isSimilarPose(lastPose.vectors, pose.vectors)) {
+      if (PoseSet.isSimilarPose(lastPose.vectors, pose.vectors)) {
         return;
       }
 
@@ -147,12 +147,12 @@ export class Pose {
     }
 
     // 全ポーズを比較して類似ポーズを削除
-    if (Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
-      const newPoses: PoseItem[] = [];
+    if (PoseSet.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
+      const newPoses: PoseSetItem[] = [];
       for (const poseA of this.poses) {
         let isDuplicated = false;
         for (const poseB of newPoses) {
-          if (Pose.isSimilarPose(poseA.vectors, poseB.vectors)) {
+          if (PoseSet.isSimilarPose(poseA.vectors, poseB.vectors)) {
             isDuplicated = true;
             break;
           }
@@ -163,7 +163,7 @@ export class Pose {
       }
 
       console.info(
-        `[Pose] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`
+        `[PoseSet] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`
       );
       this.poses = newPoses;
     }
@@ -188,28 +188,28 @@ export class Pose {
 
       // 画像を整形 - フレーム画像
       console.log(
-        `[Pose] finalize - Processing frame image...`,
+        `[PoseSet] finalize - Processing frame image...`,
         pose.timeMiliseconds
       );
       await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
 
       const marginColor = await imageTrimmer.getMarginColor();
       console.log(
-        `[Pose] finalize - Detected margin color...`,
+        `[PoseSet] finalize - Detected margin color...`,
         pose.timeMiliseconds,
         marginColor
       );
       if (marginColor === null) continue;
       if (marginColor !== '#000000') {
         console.warn(
-          `[Pose] finalize - Skip this frame image, because the margin color is not black.`
+          `[PoseSet] finalize - Skip this frame image, because the margin color is not black.`
         );
         continue;
       }
 
       const trimmed = await imageTrimmer.trimMargin(marginColor);
       console.log(
-        `[Pose] finalize - Trimmed margin of frame image...`,
+        `[PoseSet] finalize - Trimmed margin of frame image...`,
         pose.timeMiliseconds,
         trimmed
       );
@@ -232,7 +232,7 @@ export class Pose {
       );
       if (!newDataUrl) {
         console.warn(
-          `[Pose] finalize - Could not get the new dataurl for frame image`
+          `[PoseSet] finalize - Could not get the new dataurl for frame image`
         );
         continue;
       }
@@ -249,7 +249,7 @@ export class Pose {
         trimmed.heightNew
       );
       console.log(
-        `[Pose] finalize - Trimmed margin of pose preview image...`,
+        `[PoseSet] finalize - Trimmed margin of pose preview image...`,
         pose.timeMiliseconds,
         trimmed
       );
@@ -266,7 +266,7 @@ export class Pose {
       );
       if (!newDataUrl) {
         console.warn(
-          `[Pose] finalize - Could not get the new dataurl for pose preview image`
+          `[PoseSet] finalize - Could not get the new dataurl for pose preview image`
         );
         continue;
       }
@@ -280,12 +280,12 @@ export class Pose {
     results: Results,
     threshold: number = 0.9
   ): SimilarPoseItem[] {
-    const poseVector = Pose.getPoseVector((results as any).ea);
+    const poseVector = PoseSet.getPoseVector((results as any).ea);
     if (!poseVector) throw 'Could not get the pose vector';
 
     const poses = [];
     for (const pose of this.poses) {
-      const similarity = Pose.getPoseSimilarity(pose.vectors, poseVector);
+      const similarity = PoseSet.getPoseSimilarity(pose.vectors, poseVector);
       if (threshold <= similarity) {
         poses.push({
           ...pose,
@@ -342,10 +342,10 @@ export class Pose {
     threshold = 0.9
   ): boolean {
     let isSimilar = false;
-    const similarity = Pose.getPoseSimilarity(poseVectorA, poseVectorB);
+    const similarity = PoseSet.getPoseSimilarity(poseVectorA, poseVectorB);
     if (similarity >= threshold) isSimilar = true;
 
-    // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);
+    // console.log(`[PoseSet] isSimilarPose`, isSimilar, similarity);
 
     return isSimilar;
   }
@@ -451,13 +451,13 @@ export class Pose {
       poseLandmarkMappings[index] = key;
     }
 
-    const json: PoseJson = {
+    const json: PoseSetJson = {
       generator: 'mp-video-pose-extractor',
       version: 1,
       video: this.videoMetadata!,
-      poses: this.poses.map((pose: PoseItem): PoseJsonItem => {
+      poses: this.poses.map((pose: PoseSetItem): PoseSetJsonItem => {
         const poseVector = [];
-        for (const key of Pose.POSE_VECTOR_MAPPINGS) {
+        for (const key of PoseSet.POSE_VECTOR_MAPPINGS) {
           poseVector.push(pose.vectors[key as keyof PoseVector]);
         }
 
@@ -484,28 +484,26 @@ export class Pose {
     }
 
     this.videoMetadata = parsedJson.video;
-    this.poses = parsedJson.poses.map(
-      (poseJsonItem: PoseJsonItem): PoseItem => {
-        const poseVector: any = {};
-        Pose.POSE_VECTOR_MAPPINGS.map((key, index) => {
-          poseVector[key as keyof PoseVector] = poseJsonItem.vectors[index];
-        });
+    this.poses = parsedJson.poses.map((item: PoseSetJsonItem): PoseSetItem => {
+      const poseVector: any = {};
+      PoseSet.POSE_VECTOR_MAPPINGS.map((key, index) => {
+        poseVector[key as keyof PoseVector] = item.vectors[index];
+      });
 
-        return {
-          timeMiliseconds: poseJsonItem.t,
-          durationMiliseconds: poseJsonItem.d,
-          pose: poseJsonItem.pose,
-          vectors: poseVector,
-          frameImageDataUrl: undefined,
-        };
-      }
-    );
+      return {
+        timeMiliseconds: item.t,
+        durationMiliseconds: item.d,
+        pose: item.pose,
+        vectors: poseVector,
+        frameImageDataUrl: undefined,
+      };
+    });
   }
 
   async loadZip(buffer: ArrayBuffer, includeImages: boolean = true) {
-    console.log(`[Pose] loadZip...`, JSZip);
+    console.log(`[PoseSet] loadZip...`, JSZip);
     const jsZip = new JSZip();
-    console.log(`[Pose] init...`);
+    console.log(`[PoseSet] init...`);
     const zip = await jsZip.loadAsync(buffer, { base64: false });
     if (!zip) throw 'ZIPファイルを読み込めませんでした';
 

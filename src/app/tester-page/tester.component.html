@@ -34,17 +34,22 @@
     >
   </mat-card-header>
   <mat-card-content>
-    <div class="preview-video-container" *ngFor="let pose of similarPoses">
-      <p class="label">{{ pose.timeMiliseconds }} / {{ pose.similarity }}</p>
+    <div
+      class="preview-video-container"
+      *ngFor="let poseSetItem of similarPoses"
+    >
+      <p class="label">
+        {{ poseSetItem.timeMiliseconds }} / {{ poseSetItem.similarity }}
+      </p>
       <img
         class="preview-video"
-        [src]="pose.frameImageDataUrl"
-        *ngIf="pose.frameImageDataUrl"
+        [src]="poseSetItem.frameImageDataUrl"
+        *ngIf="poseSetItem.frameImageDataUrl"
       />
       <img
         class="preview-video"
         src="/assets/dummy.png"
-        *ngIf="!pose.frameImageDataUrl"
+        *ngIf="!poseSetItem.frameImageDataUrl"
       />
     </div>
   </mat-card-content>

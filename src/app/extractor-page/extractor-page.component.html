@@ -61,7 +61,7 @@
         ポーズ数:
         <ng-container *ngIf="state === 'initial'">-</ng-container>
         <ng-container *ngIf="state === 'processing' || state === 'completed'">
-          {{ pose?.getNumberOfPoses() }}
+          {{ poseSet?.getNumberOfPoses() }}
         </ng-container>
         <!---->
       </mat-card-subtitle>
@@ -155,10 +155,10 @@
     <mat-card-content>
       <div
         class="preview-video-container"
-        *ngFor="let pose of pose?.getPoses()?.slice()?.reverse()"
+        *ngFor="let poseSetItem of poseSet?.getPoses()?.slice()?.reverse()"
       >
-        <p class="label">{{ pose.timeMiliseconds }}</p>
-        <img class="preview-video" [src]="pose.frameImageDataUrl" />
+        <p class="label">{{ poseSetItem.timeMiliseconds }}</p>
+        <img class="preview-video" [src]="poseSetItem.frameImageDataUrl" />
       </div>
     </mat-card-content>
   </mat-card>

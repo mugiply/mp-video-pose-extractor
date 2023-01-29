@@ -11,7 +11,7 @@ export class TesterPageComponent implements OnInit {
   public poseFileName?: string;
   public poseFileType?: 'zip' | 'json';
   public poseZipArrayBuffer?: ArrayBuffer;
-  public poseJson?: string;
+  public poseSetJson?: string;
 
   constructor() {}
 
@@ -32,7 +32,7 @@ export class TesterPageComponent implements OnInit {
       if (this.poseFileType === 'zip') {
         this.poseZipArrayBuffer = result as ArrayBuffer;
       } else {
-        this.poseJson = result as string;
+        this.poseSetJson = result as string;
       }
     };
 

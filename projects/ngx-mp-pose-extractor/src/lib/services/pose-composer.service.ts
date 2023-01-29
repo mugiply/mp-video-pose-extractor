@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Pose } from '../classes/pose';
+import { PoseSet } from '../classes/pose-set';
 
 /**
  * ポーズを管理するためのサービス
@@ -10,31 +10,31 @@ import { Pose } from '../classes/pose';
 export class PoseComposerService {
   constructor() {}
 
-  init(videoName: string): Pose {
-    const pose = new Pose();
-    pose.setVideoName(videoName);
-    return pose;
+  init(videoName: string): PoseSet {
+    const poseSet = new PoseSet();
+    poseSet.setVideoName(videoName);
+    return poseSet;
   }
 
-  async downloadAsJson(pose: Pose) {
-    const blob = new Blob([await pose.getJson()], {
+  async downloadAsJson(poseSet: PoseSet) {
+    const blob = new Blob([await poseSet.getJson()], {
       type: 'application/json',
     });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
-    a.download = `${pose.getVideoName()}-poses.json`;
+    a.download = `${poseSet.getVideoName()}-poses.json`;
     a.click();
   }
 
-  async downloadAsZip(pose: Pose) {
-    const content = await pose.getZip();
+  async downloadAsZip(poseSet: PoseSet) {
+    const content = await poseSet.getZip();
     const url = window.URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
-    a.download = `${pose.getVideoName()}-poses.zip`;
+    a.download = `${poseSet.getVideoName()}-poses.zip`;
     a.click();
   }
 }

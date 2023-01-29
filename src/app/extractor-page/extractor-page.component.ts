@@ -7,10 +7,10 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { GpuBuffer, Results } from '@mediapipe/holistic';
+import { Results } from '@mediapipe/holistic';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import {
-  Pose,
+  PoseSet,
   PoseExtractorService,
 } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { Subscription } from 'rxjs';
@@ -35,7 +35,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
   public mathFloor = Math.floor;
 
-  public pose?: Pose;
+  public poseSet?: PoseSet;
 
   private onResultsEventEmitterSubscription!: Subscription;
 
@@ -70,10 +70,10 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   async onSourceVideoEnded(event: any) {
-    if (!this.pose) return;
+    if (!this.poseSet) return;
 
     let message = this.snackBar.open('最終処理をしています...');
-    await this.pose.finalize();
+    await this.poseSet.finalize();
     message.dismiss();
 
     this.state = 'completed';
@@ -96,7 +96,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
 
     this.state = 'processing';
-    this.pose = this.poseComposerService.init(videoName);
+    this.poseSet = this.poseComposerService.init(videoName);
 
     await this.onVideoFrame();
 
@@ -128,7 +128,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     sourceImageDataUrl: string,
     posePreviewImageDataUrl: string
   ) {
-    if (!this.pose) return;
+    if (!this.poseSet) return;
 
     const videoElement = this.sourceVideoElement?.nativeElement;
     if (!videoElement) return;
@@ -141,7 +141,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
       this.sourceVideoElement?.nativeElement.duration * 1000
     );
 
-    this.pose.pushPose(
+    this.poseSet.pushPose(
       sourceVideoTimeMiliseconds,
       sourceImageDataUrl,
       posePreviewImageDataUrl,
@@ -153,11 +153,11 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   public downloadPosesAsZip() {
-    if (!this.pose) return;
+    if (!this.poseSet) return;
 
     const message = this.snackBar.open('保存するデータを生成しています...');
     try {
-      this.poseComposerService.downloadAsZip(this.pose);
+      this.poseComposerService.downloadAsZip(this.poseSet);
     } catch (e: any) {
       console.error(e);
       message.dismiss();
@@ -169,11 +169,11 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   public downloadPosesAsJson() {
-    if (!this.pose) return;
+    if (!this.poseSet) return;
 
     const message = this.snackBar.open('保存するデータを生成しています...');
     try {
-      this.poseComposerService.downloadAsJson(this.pose);
+      this.poseComposerService.downloadAsJson(this.poseSet);
     } catch (e: any) {
       console.error(e);
       message.dismiss();

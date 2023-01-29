@@ -1,6 +1,6 @@
-import { PoseJsonItem } from './pose-json-item';
+import { PoseSetJsonItem } from './pose-set-json-item';
 
-export interface PoseJson {
+export interface PoseSetJson {
   generator: string;
   version: number;
   video: {
@@ -8,6 +8,6 @@ export interface PoseJson {
     height: number;
     duration: number;
   };
-  poses: PoseJsonItem[];
+  poses: PoseSetJsonItem[];
   poseLandmarkMapppings: string[];
 }
