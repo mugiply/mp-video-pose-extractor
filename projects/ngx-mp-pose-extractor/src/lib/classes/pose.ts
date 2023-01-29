@@ -8,6 +8,7 @@ import { PoseVector } from '../interfaces/pose-vector';
 // @ts-ignore
 import cosSimilarity from 'cos-similarity';
 import { SimilarPoseItem } from '../interfaces/matched-pose-item';
+import { ImageTrimmer } from './internals/image-trimmer';
 
 export class Pose {
   public generator?: string;
@@ -29,6 +30,17 @@ export class Pose {
     'leftWristToLeftElbow',
     'leftElbowToLeftShoulder',
   ];
+
+  // 画像書き出し時の設定
+  private readonly IMAGE_WIDTH: number = 1080;
+  private readonly IMAGE_MIME: 'image/jpeg' | 'image/png' | 'image/webp' =
+    'image/webp';
+  private readonly IMAGE_QUALITY = 0.7;
+
+  // 画像の背景色置換
+  private readonly IMAGE_BACKGROUND_REPLACE_SRC_COLOR = '#016AFD';
+  private readonly IMAGE_BACKGROUND_REPLACE_DST_COLOR = '#FFFFFF00';
+  private readonly IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 100;
 
   constructor() {
     this.videoMetadata = {
@@ -70,8 +82,8 @@ export class Pose {
 
   pushPose(
     videoTimeMiliseconds: number,
-    frameImageJpegDataUrl: string | undefined,
-    poseImageJpegDataUrl: string | undefined,
+    frameImageDataUrl: string | undefined,
+    poseImageDataUrl: string | undefined,
     videoWidth: number,
     videoHeight: number,
     videoDuration: number,
@@ -108,8 +120,8 @@ export class Pose {
         return [landmark.x, landmark.y, landmark.z, landmark.visibility];
       }),
       vectors: poseVector,
-      frameImageDataUrl: frameImageJpegDataUrl,
-      poseImageDataUrl: poseImageJpegDataUrl,
+      frameImageDataUrl: frameImageDataUrl,
+      poseImageDataUrl: poseImageDataUrl,
     };
 
     if (1 <= this.poses.length) {
@@ -128,7 +140,7 @@ export class Pose {
     this.poses.push(pose);
   }
 
-  finalize() {
+  async finalize() {
     if (0 == this.poses.length) {
       this.isFinalized = true;
       return;
@@ -165,6 +177,100 @@ export class Pose {
         this.poses[this.poses.length - 1].durationMiliseconds =
           poseDurationMiliseconds;
       }
+    }
+
+    // 画像を整形
+    for (const pose of this.poses) {
+      let imageTrimmer = new ImageTrimmer();
+      if (!pose.frameImageDataUrl || !pose.poseImageDataUrl) {
+        continue;
+      }
+
+      // 画像を整形 - フレーム画像
+      console.log(
+        `[Pose] finalize - Processing frame image...`,
+        pose.timeMiliseconds
+      );
+      await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
+
+      const marginColor = await imageTrimmer.getMarginColor();
+      console.log(
+        `[Pose] finalize - Detected margin color...`,
+        pose.timeMiliseconds,
+        marginColor
+      );
+      if (marginColor === null) continue;
+      if (marginColor !== '#000000') {
+        console.warn(
+          `[Pose] finalize - Skip this frame image, because the margin color is not black.`
+        );
+        continue;
+      }
+
+      const trimmed = await imageTrimmer.trimMargin(marginColor);
+      console.log(
+        `[Pose] finalize - Trimmed margin of frame image...`,
+        pose.timeMiliseconds,
+        trimmed
+      );
+
+      await imageTrimmer.replaceColor(
+        this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR,
+        this.IMAGE_BACKGROUND_REPLACE_DST_COLOR,
+        this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD
+      );
+
+      await imageTrimmer.resizeWithFit({
+        width: this.IMAGE_WIDTH,
+      });
+
+      let newDataUrl = await imageTrimmer.getDataUrl(
+        this.IMAGE_MIME,
+        this.IMAGE_MIME === 'image/jpeg' || this.IMAGE_MIME === 'image/webp'
+          ? this.IMAGE_QUALITY
+          : undefined
+      );
+      if (!newDataUrl) {
+        console.warn(
+          `[Pose] finalize - Could not get the new dataurl for frame image`
+        );
+        continue;
+      }
+      pose.frameImageDataUrl = newDataUrl;
+
+      // 画像を整形 - ポーズプレビュー画像
+      imageTrimmer = new ImageTrimmer();
+      await imageTrimmer.loadByDataUrl(pose.poseImageDataUrl);
+
+      await imageTrimmer.crop(
+        0,
+        trimmed.marginTop,
+        trimmed.width,
+        trimmed.heightNew
+      );
+      console.log(
+        `[Pose] finalize - Trimmed margin of pose preview image...`,
+        pose.timeMiliseconds,
+        trimmed
+      );
+
+      await imageTrimmer.resizeWithFit({
+        width: this.IMAGE_WIDTH,
+      });
+
+      newDataUrl = await imageTrimmer.getDataUrl(
+        this.IMAGE_MIME,
+        this.IMAGE_MIME === 'image/jpeg' || this.IMAGE_MIME === 'image/webp'
+          ? this.IMAGE_QUALITY
+          : undefined
+      );
+      if (!newDataUrl) {
+        console.warn(
+          `[Pose] finalize - Could not get the new dataurl for pose preview image`
+        );
+        continue;
+      }
+      pose.poseImageDataUrl = newDataUrl;
     }
 
     this.isFinalized = true;
@@ -276,7 +382,9 @@ export class Pose {
 
   public async getZip(): Promise<Blob> {
     const jsZip = new JSZip();
-    jsZip.file('poses.json', this.getJson());
+    jsZip.file('poses.json', await this.getJson());
+
+    const imageFileExt = this.getFileExtensionByMime(this.IMAGE_MIME);
 
     for (const pose of this.poses) {
       if (pose.frameImageDataUrl) {
@@ -284,7 +392,7 @@ export class Pose {
           const index =
             pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
           const base64 = pose.frameImageDataUrl.substring(index);
-          jsZip.file(`frame-${pose.timeMiliseconds}.jpg`, base64, {
+          jsZip.file(`frame-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
             base64: true,
           });
         } catch (error) {
@@ -300,7 +408,7 @@ export class Pose {
           const index =
             pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
           const base64 = pose.poseImageDataUrl.substring(index);
-          jsZip.file(`pose-${pose.timeMiliseconds}.jpg`, base64, {
+          jsZip.file(`pose-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
             base64: true,
           });
         } catch (error) {
@@ -316,12 +424,25 @@ export class Pose {
     return await jsZip.generateAsync({ type: 'blob' });
   }
 
-  public getJson(): string {
+  getFileExtensionByMime(IMAGE_MIME: string) {
+    switch (IMAGE_MIME) {
+      case 'image/png':
+        return 'png';
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/webp':
+        return 'webp';
+      default:
+        return 'png';
+    }
+  }
+
+  public async getJson(): Promise<string> {
     if (this.videoMetadata === undefined || this.poses === undefined)
       return '{}';
 
     if (!this.isFinalized) {
-      this.finalize();
+      await this.finalize();
     }
 
     let poseLandmarkMappings = [];
@@ -395,24 +516,26 @@ export class Pose {
 
     this.loadJson(json);
 
+    const fileExt = this.getFileExtensionByMime(this.IMAGE_MIME);
+
     if (includeImages) {
       for (const pose of this.poses) {
         if (!pose.frameImageDataUrl) {
-          const frameImageFileName = `frame-${pose.timeMiliseconds}.jpg`;
+          const frameImageFileName = `frame-${pose.timeMiliseconds}.${fileExt}`;
           const imageBase64 = await zip
             .file(frameImageFileName)
             ?.async('base64');
           if (imageBase64) {
-            pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+            pose.frameImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
           }
         }
         if (!pose.poseImageDataUrl) {
-          const poseImageFileName = `pose-${pose.timeMiliseconds}.jpg`;
+          const poseImageFileName = `pose-${pose.timeMiliseconds}.${fileExt}`;
           const imageBase64 = await zip
             .file(poseImageFileName)
             ?.async('base64');
           if (imageBase64) {
-            pose.poseImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+            pose.poseImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
           }
         }
       }

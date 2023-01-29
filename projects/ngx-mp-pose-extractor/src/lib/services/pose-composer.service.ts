@@ -16,8 +16,8 @@ export class PoseComposerService {
     return pose;
   }
 
-  downloadAsJson(pose: Pose) {
-    const blob = new Blob([pose.getJson()], {
+  async downloadAsJson(pose: Pose) {
+    const blob = new Blob([await pose.getJson()], {
       type: 'application/json',
     });
     const url = window.URL.createObjectURL(blob);

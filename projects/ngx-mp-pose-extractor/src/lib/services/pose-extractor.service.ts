@@ -33,8 +33,6 @@ export class PoseExtractorService {
   private handPreviewCanvasElement?: HTMLCanvasElement;
   private handPreviewCanvasContext?: CanvasRenderingContext2D;
 
-  private readonly IMAGE_JPEG_QUALITY = 0.8;
-
   constructor() {
     this.init();
   }
@@ -133,11 +131,9 @@ export class PoseExtractorService {
       this.posePreviewCanvasElement.height
     );
 
-    // 検出に使用したフレーム画像を保持
-    const sourceImageDataUrl = this.posePreviewCanvasElement.toDataURL(
-      'image/jpeg',
-      this.IMAGE_JPEG_QUALITY
-    );
+    // 検出に使用したフレーム画像を保持 (加工されていない画像)
+    const sourceImageDataUrl =
+      this.posePreviewCanvasElement.toDataURL('image/png');
 
     // 肘と手をつなぐ線を描画
     this.posePreviewCanvasContext.lineWidth = 5;
@@ -277,11 +273,11 @@ export class PoseExtractorService {
     // イベントを送出
     this.onResultsEventEmitter.emit({
       mpResults: results,
+      // 加工されていない画像 (PNG)
       sourceImageDataUrl: sourceImageDataUrl,
-      posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL(
-        'image/jpeg',
-        this.IMAGE_JPEG_QUALITY
-      ),
+      // 加工された画像 (PNG)
+      posePreviewImageDataUrl:
+        this.posePreviewCanvasElement.toDataURL('image/png'),
     });
 
     // 完了

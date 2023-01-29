@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Results } from '@mediapipe/holistic';
-import { PoseExtractorService, PoseItem } from 'ngx-mp-pose-extractor';
+import { PoseExtractorService } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
 import { Pose } from 'projects/ngx-mp-pose-extractor/src/public-api';

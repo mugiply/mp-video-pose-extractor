@@ -69,12 +69,15 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  onSourceVideoEnded(event: any) {
+  async onSourceVideoEnded(event: any) {
     if (!this.pose) return;
-    this.pose.finalize();
+
+    let message = this.snackBar.open('最終処理をしています...');
+    await this.pose.finalize();
+    message.dismiss();
 
     this.state = 'completed';
-    const message = this.snackBar.open('検出が完了しました', '保存');
+    message = this.snackBar.open('検出が完了しました', '保存');
     message.onAction().subscribe(() => {
       this.downloadPosesAsZip();
     });
