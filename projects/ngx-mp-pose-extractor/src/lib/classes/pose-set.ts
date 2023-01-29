@@ -18,6 +18,7 @@ export class PoseSet {
     width: number;
     height: number;
     duration: number;
+    firstPoseDetectedTime: number;
   };
   public poses: PoseSetItem[] = [];
   public isFinalized?: boolean = false;
@@ -37,10 +38,14 @@ export class PoseSet {
     'image/webp';
   private readonly IMAGE_QUALITY = 0.7;
 
+  // 画像の余白除去
+  private readonly IMAGE_MARGIN_TRIMMING_COLOR = '#000000';
+  private readonly IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD = 50;
+
   // 画像の背景色置換
   private readonly IMAGE_BACKGROUND_REPLACE_SRC_COLOR = '#016AFD';
   private readonly IMAGE_BACKGROUND_REPLACE_DST_COLOR = '#FFFFFF00';
-  private readonly IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 100;
+  private readonly IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 130;
 
   constructor() {
     this.videoMetadata = {
@@ -48,6 +53,7 @@ export class PoseSet {
       width: 0,
       height: 0,
       duration: 0,
+      firstPoseDetectedTime: 0,
     };
   }
 
@@ -92,6 +98,10 @@ export class PoseSet {
     this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
 
     if (results.poseLandmarks === undefined) return;
+
+    if (this.poses.length === 0) {
+      this.videoMetadata.firstPoseDetectedTime = videoTimeMiliseconds;
+    }
 
     const poseLandmarksWithWorldCoordinate: any[] = (results as any).ea
       ? (results as any).ea
@@ -179,6 +189,47 @@ export class PoseSet {
       }
     }
 
+    // 画像のマージンを取得
+    console.log(`[PoseSet] finalize - Detecting image margins...`);
+    let imageTrimming:
+      | {
+          marginTop: number;
+          marginBottom: number;
+          heightNew: number;
+          heightOld: number;
+          width: number;
+        }
+      | undefined = undefined;
+    for (const pose of this.poses) {
+      let imageTrimmer = new ImageTrimmer();
+      if (!pose.frameImageDataUrl) {
+        continue;
+      }
+      await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
+
+      const marginColor = await imageTrimmer.getMarginColor();
+      console.log(
+        `[PoseSet] finalize - Detected margin color...`,
+        pose.timeMiliseconds,
+        marginColor
+      );
+      if (marginColor === null) continue;
+      if (marginColor !== this.IMAGE_MARGIN_TRIMMING_COLOR) {
+        continue;
+      }
+      const trimmed = await imageTrimmer.trimMargin(
+        marginColor,
+        this.IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD
+      );
+      if (!trimmed) continue;
+      imageTrimming = trimmed;
+      console.log(
+        `[PoseSet] finalize - Determined image trimming positions...`,
+        trimmed
+      );
+      break;
+    }
+
     // 画像を整形
     for (const pose of this.poses) {
       let imageTrimmer = new ImageTrimmer();
@@ -193,26 +244,14 @@ export class PoseSet {
       );
       await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
 
-      const marginColor = await imageTrimmer.getMarginColor();
-      console.log(
-        `[PoseSet] finalize - Detected margin color...`,
-        pose.timeMiliseconds,
-        marginColor
-      );
-      if (marginColor === null) continue;
-      if (marginColor !== '#000000') {
-        console.warn(
-          `[PoseSet] finalize - Skip this frame image, because the margin color is not black.`
+      if (imageTrimming) {
+        await imageTrimmer.crop(
+          0,
+          imageTrimming.marginTop,
+          imageTrimming.width,
+          imageTrimming.heightNew
         );
-        continue;
       }
-
-      const trimmed = await imageTrimmer.trimMargin(marginColor);
-      console.log(
-        `[PoseSet] finalize - Trimmed margin of frame image...`,
-        pose.timeMiliseconds,
-        trimmed
-      );
 
       await imageTrimmer.replaceColor(
         this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR,
@@ -242,17 +281,14 @@ export class PoseSet {
       imageTrimmer = new ImageTrimmer();
       await imageTrimmer.loadByDataUrl(pose.poseImageDataUrl);
 
-      await imageTrimmer.crop(
-        0,
-        trimmed.marginTop,
-        trimmed.width,
-        trimmed.heightNew
-      );
-      console.log(
-        `[PoseSet] finalize - Trimmed margin of pose preview image...`,
-        pose.timeMiliseconds,
-        trimmed
-      );
+      if (imageTrimming) {
+        await imageTrimmer.crop(
+          0,
+          imageTrimming.marginTop,
+          imageTrimming.width,
+          imageTrimming.heightNew
+        );
+      }
 
       await imageTrimmer.resizeWithFit({
         width: this.IMAGE_WIDTH,

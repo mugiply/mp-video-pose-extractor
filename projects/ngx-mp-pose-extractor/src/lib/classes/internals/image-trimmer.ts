@@ -25,7 +25,7 @@ export class ImageTrimmer {
     this.context = context;
   }
 
-  async trimMargin(marginColor: string) {
+  async trimMargin(marginColor: string, diffThreshold: number = 10) {
     if (this.canvas === undefined) throw new Error('Image is not loaded');
 
     // マージンを検出する範囲を指定 (左端から0〜20%)
@@ -36,6 +36,7 @@ export class ImageTrimmer {
     const edgePositionFromTop = await this.getVerticalEdgePositionOfColor(
       marginColor,
       'top',
+      diffThreshold,
       edgeDetectionRangeMinX,
       edgeDetectionRangeMaxX
     );
@@ -44,6 +45,7 @@ export class ImageTrimmer {
     const edgePositionFromBottom = await this.getVerticalEdgePositionOfColor(
       marginColor,
       'bottom',
+      diffThreshold,
       edgeDetectionRangeMinX,
       edgeDetectionRangeMaxX
     );
@@ -167,6 +169,7 @@ export class ImageTrimmer {
   async getVerticalEdgePositionOfColor(
     color: string,
     direction: 'top' | 'bottom',
+    diffThreshold: number,
     minX?: number,
     maxX?: number
   ) {
@@ -203,7 +206,10 @@ export class ImageTrimmer {
           const alpha = imageData.data[idx + 3];
 
           const colorCode = this.rgbToHexColorCode(red, green, blue);
-          if (color == colorCode) {
+          if (
+            color == colorCode ||
+            this.isSimilarColor(color, colorCode, diffThreshold)
+          ) {
             if (edgePositionY < y) {
               edgePositionY = y;
             }
@@ -229,7 +235,10 @@ export class ImageTrimmer {
           const alpha = imageData.data[idx + 3];
 
           const colorCode = this.rgbToHexColorCode(red, green, blue);
-          if (color == colorCode) {
+          if (
+            color == colorCode ||
+            this.isSimilarColor(color, colorCode, diffThreshold)
+          ) {
             if (edgePositionY > y) {
               edgePositionY = y;
             }
