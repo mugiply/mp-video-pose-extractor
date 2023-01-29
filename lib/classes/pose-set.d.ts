@@ -1,25 +1,29 @@
 import { Results } from '@mediapipe/holistic';
-import { PoseItem } from '../interfaces/pose-item';
+import { PoseSetItem } from '../interfaces/pose-set-item';
 import { PoseVector } from '../interfaces/pose-vector';
 import { SimilarPoseItem } from '../interfaces/matched-pose-item';
-export declare class Pose {
+export declare class PoseSet {
     generator?: string;
     version?: number;
     private videoMetadata;
-    poses: PoseItem[];
+    poses: PoseSetItem[];
     isFinalized?: boolean;
     static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
     static readonly POSE_VECTOR_MAPPINGS: string[];
-    private readonly IMAGE_JPEG_QUALITY;
     private readonly IMAGE_WIDTH;
+    private readonly IMAGE_MIME;
+    private readonly IMAGE_QUALITY;
+    private readonly IMAGE_BACKGROUND_REPLACE_SRC_COLOR;
+    private readonly IMAGE_BACKGROUND_REPLACE_DST_COLOR;
+    private readonly IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD;
     constructor();
     getVideoName(): string;
     setVideoName(videoName: string): void;
     setVideoMetaData(width: number, height: number, duration: number): void;
     getNumberOfPoses(): number;
-    getPoses(): PoseItem[];
-    getPoseByTime(timeMiliseconds: number): PoseItem | undefined;
-    pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
+    getPoses(): PoseSetItem[];
+    getPoseByTime(timeMiliseconds: number): PoseSetItem | undefined;
+    pushPose(videoTimeMiliseconds: number, frameImageDataUrl: string | undefined, poseImageDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): Promise<void>;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
     static getPoseVector(poseLandmarks: {
@@ -30,6 +34,7 @@ export declare class Pose {
     static isSimilarPose(poseVectorA: PoseVector, poseVectorB: PoseVector, threshold?: number): boolean;
     static getPoseSimilarity(poseVectorA: PoseVector, poseVectorB: PoseVector): number;
     getZip(): Promise<Blob>;
+    getFileExtensionByMime(IMAGE_MIME: string): "png" | "jpg" | "webp";
     getJson(): Promise<string>;
     loadJson(json: string | any): void;
     loadZip(buffer: ArrayBuffer, includeImages?: boolean): Promise<void>;

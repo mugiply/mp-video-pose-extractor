@@ -107,6 +107,34 @@ class ImageTrimmer {
             this.replaceCanvas(newCanvas);
         });
     }
+    replaceColor(srcColor, dstColor, diffThreshold) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas || !this.context)
+                return;
+            const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            const dstColorValue = this.hexColorCodeToRgba(dstColor);
+            for (let x = 0; x < imageData.width; x++) {
+                for (let y = 0; y < imageData.height; y++) {
+                    const idx = (x + y * imageData.width) * 4;
+                    const red = imageData.data[idx + 0];
+                    const green = imageData.data[idx + 1];
+                    const blue = imageData.data[idx + 2];
+                    const alpha = imageData.data[idx + 3];
+                    const colorCode = this.rgbToHexColorCode(red, green, blue);
+                    if (!this.isSimilarColor(srcColor, colorCode, diffThreshold)) {
+                        continue;
+                    }
+                    imageData.data[idx + 0] = dstColorValue.r;
+                    imageData.data[idx + 1] = dstColorValue.g;
+                    imageData.data[idx + 2] = dstColorValue.b;
+                    if (dstColorValue.a !== undefined) {
+                        imageData.data[idx + 3] = dstColorValue.a;
+                    }
+                }
+            }
+            this.context.putImageData(imageData, 0, 0);
+        });
+    }
     getMarginColor() {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.canvas || !this.context) {
@@ -172,6 +200,9 @@ class ImageTrimmer {
                         }
                     }
                 }
+                if (edgePositionY !== 0) {
+                    edgePositionY += 1;
+                }
             }
             else if (direction === 'bottom') {
                 edgePositionY = this.canvas.height;
@@ -193,6 +224,9 @@ class ImageTrimmer {
                             break;
                         }
                     }
+                }
+                if (edgePositionY !== this.canvas.height) {
+                    edgePositionY -= 1;
                 }
             }
             return edgePositionY;
@@ -248,18 +282,28 @@ class ImageTrimmer {
         this.canvas = canvas;
         this.context = this.canvas.getContext('2d');
     }
-    getDataUrl(mime = 'image/jpeg', jpegQuality) {
+    getDataUrl(mime = 'image/jpeg', imageQuality) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.canvas) {
                 return null;
             }
-            if (mime === 'image/jpeg') {
-                return this.canvas.toDataURL(mime, jpegQuality);
+            if (mime === 'image/jpeg' || mime === 'image/webp') {
+                return this.canvas.toDataURL(mime, imageQuality);
             }
             else {
                 return this.canvas.toDataURL(mime);
             }
         });
+    }
+    hexColorCodeToRgba(color) {
+        const r = parseInt(color.substr(1, 2), 16);
+        const g = parseInt(color.substr(3, 2), 16);
+        const b = parseInt(color.substr(5, 2), 16);
+        if (color.length === 9) {
+            const a = parseInt(color.substr(7, 2), 16);
+            return { r, g, b, a };
+        }
+        return { r, g, b };
     }
     rgbToHexColorCode(r, g, b) {
         return '#' + this.valueToHex(r) + this.valueToHex(g) + this.valueToHex(b);
@@ -267,14 +311,28 @@ class ImageTrimmer {
     valueToHex(value) {
         return ('0' + value.toString(16)).slice(-2);
     }
+    isSimilarColor(color1, color2, diffThreshold) {
+        const color1Rgb = this.hexColorCodeToRgba(color1);
+        const color2Rgb = this.hexColorCodeToRgba(color2);
+        const diff = Math.abs(color1Rgb.r - color2Rgb.r) +
+            Math.abs(color1Rgb.g - color2Rgb.g) +
+            Math.abs(color1Rgb.b - color2Rgb.b);
+        return diff < diffThreshold;
+    }
 }
 
-class Pose {
+class PoseSet {
     constructor() {
         this.poses = [];
         this.isFinalized = false;
-        this.IMAGE_JPEG_QUALITY = 0.7;
-        this.IMAGE_WIDTH = 900;
+        // 画像書き出し時の設定
+        this.IMAGE_WIDTH = 1080;
+        this.IMAGE_MIME = 'image/webp';
+        this.IMAGE_QUALITY = 0.7;
+        // 画像の背景色置換
+        this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR = '#016AFD';
+        this.IMAGE_BACKGROUND_REPLACE_DST_COLOR = '#FFFFFF00';
+        this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 100;
         this.videoMetadata = {
             name: '',
             width: 0,
@@ -308,7 +366,7 @@ class Pose {
             return undefined;
         return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
     }
-    pushPose(videoTimeMiliseconds, frameImageJpegDataUrl, poseImageJpegDataUrl, videoWidth, videoHeight, videoDuration, results) {
+    pushPose(videoTimeMiliseconds, frameImageDataUrl, poseImageDataUrl, videoWidth, videoHeight, videoDuration, results) {
         this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
         if (results.poseLandmarks === undefined)
             return;
@@ -316,12 +374,12 @@ class Pose {
             ? results.ea
             : [];
         if (poseLandmarksWithWorldCoordinate.length === 0) {
-            console.warn(`[Pose] pushPose - Could not get the pose with the world coordinate`, results);
+            console.warn(`[PoseSet] pushPose - Could not get the pose with the world coordinate`, results);
             return;
         }
-        const poseVector = Pose.getPoseVector(poseLandmarksWithWorldCoordinate);
+        const poseVector = PoseSet.getPoseVector(poseLandmarksWithWorldCoordinate);
         if (!poseVector) {
-            console.warn(`[Pose] pushPose - Could not get the pose vector`, poseLandmarksWithWorldCoordinate);
+            console.warn(`[PoseSet] pushPose - Could not get the pose vector`, poseLandmarksWithWorldCoordinate);
             return;
         }
         const pose = {
@@ -331,12 +389,12 @@ class Pose {
                 return [landmark.x, landmark.y, landmark.z, landmark.visibility];
             }),
             vectors: poseVector,
-            frameImageDataUrl: frameImageJpegDataUrl,
-            poseImageDataUrl: poseImageJpegDataUrl,
+            frameImageDataUrl: frameImageDataUrl,
+            poseImageDataUrl: poseImageDataUrl,
         };
         if (1 <= this.poses.length) {
             const lastPose = this.poses[this.poses.length - 1];
-            if (Pose.isSimilarPose(lastPose.vectors, pose.vectors)) {
+            if (PoseSet.isSimilarPose(lastPose.vectors, pose.vectors)) {
                 return;
             }
             // 前回のポーズの持続時間を設定
@@ -353,12 +411,12 @@ class Pose {
                 return;
             }
             // 全ポーズを比較して類似ポーズを削除
-            if (Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
+            if (PoseSet.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
                 const newPoses = [];
                 for (const poseA of this.poses) {
                     let isDuplicated = false;
                     for (const poseB of newPoses) {
-                        if (Pose.isSimilarPose(poseA.vectors, poseB.vectors)) {
+                        if (PoseSet.isSimilarPose(poseA.vectors, poseB.vectors)) {
                             isDuplicated = true;
                             break;
                         }
@@ -367,7 +425,7 @@ class Pose {
                         continue;
                     newPoses.push(poseA);
                 }
-                console.info(`[Pose] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
+                console.info(`[PoseSet] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
                 this.poses = newPoses;
             }
             // 最後のポーズの持続時間を設定
@@ -386,24 +444,27 @@ class Pose {
                     continue;
                 }
                 // 画像を整形 - フレーム画像
-                console.log(`[Pose] finalize - Processing frame image...`, pose.timeMiliseconds);
+                console.log(`[PoseSet] finalize - Processing frame image...`, pose.timeMiliseconds);
                 yield imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
                 const marginColor = yield imageTrimmer.getMarginColor();
-                console.log(`[Pose] finalize - Detected margin color...`, pose.timeMiliseconds, marginColor);
+                console.log(`[PoseSet] finalize - Detected margin color...`, pose.timeMiliseconds, marginColor);
                 if (marginColor === null)
                     continue;
                 if (marginColor !== '#000000') {
-                    console.warn(`[Pose] finalize - Skip this frame image, because the margin color is not black.`);
+                    console.warn(`[PoseSet] finalize - Skip this frame image, because the margin color is not black.`);
                     continue;
                 }
                 const trimmed = yield imageTrimmer.trimMargin(marginColor);
-                console.log(`[Pose] finalize - Trimmed margin of frame image...`, pose.timeMiliseconds, trimmed);
+                console.log(`[PoseSet] finalize - Trimmed margin of frame image...`, pose.timeMiliseconds, trimmed);
+                yield imageTrimmer.replaceColor(this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR, this.IMAGE_BACKGROUND_REPLACE_DST_COLOR, this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD);
                 yield imageTrimmer.resizeWithFit({
                     width: this.IMAGE_WIDTH,
                 });
-                let newDataUrl = yield imageTrimmer.getDataUrl('image/jpeg', this.IMAGE_JPEG_QUALITY);
+                let newDataUrl = yield imageTrimmer.getDataUrl(this.IMAGE_MIME, this.IMAGE_MIME === 'image/jpeg' || this.IMAGE_MIME === 'image/webp'
+                    ? this.IMAGE_QUALITY
+                    : undefined);
                 if (!newDataUrl) {
-                    console.warn(`[Pose] finalize - Could not get the new dataurl for frame image`);
+                    console.warn(`[PoseSet] finalize - Could not get the new dataurl for frame image`);
                     continue;
                 }
                 pose.frameImageDataUrl = newDataUrl;
@@ -411,13 +472,15 @@ class Pose {
                 imageTrimmer = new ImageTrimmer();
                 yield imageTrimmer.loadByDataUrl(pose.poseImageDataUrl);
                 yield imageTrimmer.crop(0, trimmed.marginTop, trimmed.width, trimmed.heightNew);
-                console.log(`[Pose] finalize - Trimmed margin of pose preview image...`, pose.timeMiliseconds, trimmed);
+                console.log(`[PoseSet] finalize - Trimmed margin of pose preview image...`, pose.timeMiliseconds, trimmed);
                 yield imageTrimmer.resizeWithFit({
                     width: this.IMAGE_WIDTH,
                 });
-                newDataUrl = yield imageTrimmer.getDataUrl('image/jpeg', this.IMAGE_JPEG_QUALITY);
+                newDataUrl = yield imageTrimmer.getDataUrl(this.IMAGE_MIME, this.IMAGE_MIME === 'image/jpeg' || this.IMAGE_MIME === 'image/webp'
+                    ? this.IMAGE_QUALITY
+                    : undefined);
                 if (!newDataUrl) {
-                    console.warn(`[Pose] finalize - Could not get the new dataurl for pose preview image`);
+                    console.warn(`[PoseSet] finalize - Could not get the new dataurl for pose preview image`);
                     continue;
                 }
                 pose.poseImageDataUrl = newDataUrl;
@@ -426,12 +489,12 @@ class Pose {
         });
     }
     getSimilarPoses(results, threshold = 0.9) {
-        const poseVector = Pose.getPoseVector(results.ea);
+        const poseVector = PoseSet.getPoseVector(results.ea);
         if (!poseVector)
             throw 'Could not get the pose vector';
         const poses = [];
         for (const pose of this.poses) {
-            const similarity = Pose.getPoseSimilarity(pose.vectors, poseVector);
+            const similarity = PoseSet.getPoseSimilarity(pose.vectors, poseVector);
             if (threshold <= similarity) {
                 poses.push(Object.assign(Object.assign({}, pose), { similarity: similarity }));
             }
@@ -476,10 +539,10 @@ class Pose {
     }
     static isSimilarPose(poseVectorA, poseVectorB, threshold = 0.9) {
         let isSimilar = false;
-        const similarity = Pose.getPoseSimilarity(poseVectorA, poseVectorB);
+        const similarity = PoseSet.getPoseSimilarity(poseVectorA, poseVectorB);
         if (similarity >= threshold)
             isSimilar = true;
-        // console.log(`[Pose] isSimilarPose`, isSimilar, similarity);
+        // console.log(`[PoseSet] isSimilarPose`, isSimilar, similarity);
         return isSimilar;
     }
     static getPoseSimilarity(poseVectorA, poseVectorB) {
@@ -496,12 +559,13 @@ class Pose {
         return __awaiter(this, void 0, void 0, function* () {
             const jsZip = new JSZip();
             jsZip.file('poses.json', yield this.getJson());
+            const imageFileExt = this.getFileExtensionByMime(this.IMAGE_MIME);
             for (const pose of this.poses) {
                 if (pose.frameImageDataUrl) {
                     try {
                         const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                         const base64 = pose.frameImageDataUrl.substring(index);
-                        jsZip.file(`frame-${pose.timeMiliseconds}.jpg`, base64, {
+                        jsZip.file(`frame-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
                             base64: true,
                         });
                     }
@@ -514,7 +578,7 @@ class Pose {
                     try {
                         const index = pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
                         const base64 = pose.poseImageDataUrl.substring(index);
-                        jsZip.file(`pose-${pose.timeMiliseconds}.jpg`, base64, {
+                        jsZip.file(`pose-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
                             base64: true,
                         });
                     }
@@ -526,6 +590,18 @@ class Pose {
             }
             return yield jsZip.generateAsync({ type: 'blob' });
         });
+    }
+    getFileExtensionByMime(IMAGE_MIME) {
+        switch (IMAGE_MIME) {
+            case 'image/png':
+                return 'png';
+            case 'image/jpeg':
+                return 'jpg';
+            case 'image/webp':
+                return 'webp';
+            default:
+                return 'png';
+        }
     }
     getJson() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -545,7 +621,7 @@ class Pose {
                 video: this.videoMetadata,
                 poses: this.poses.map((pose) => {
                     const poseVector = [];
-                    for (const key of Pose.POSE_VECTOR_MAPPINGS) {
+                    for (const key of PoseSet.POSE_VECTOR_MAPPINGS) {
                         poseVector.push(pose.vectors[key]);
                     }
                     return {
@@ -569,15 +645,15 @@ class Pose {
             throw '未対応のバージョン';
         }
         this.videoMetadata = parsedJson.video;
-        this.poses = parsedJson.poses.map((poseJsonItem) => {
+        this.poses = parsedJson.poses.map((item) => {
             const poseVector = {};
-            Pose.POSE_VECTOR_MAPPINGS.map((key, index) => {
-                poseVector[key] = poseJsonItem.vectors[index];
+            PoseSet.POSE_VECTOR_MAPPINGS.map((key, index) => {
+                poseVector[key] = item.vectors[index];
             });
             return {
-                timeMiliseconds: poseJsonItem.t,
-                durationMiliseconds: poseJsonItem.d,
-                pose: poseJsonItem.pose,
+                timeMiliseconds: item.t,
+                durationMiliseconds: item.d,
+                pose: item.pose,
                 vectors: poseVector,
                 frameImageDataUrl: undefined,
             };
@@ -586,9 +662,9 @@ class Pose {
     loadZip(buffer, includeImages = true) {
         var _a, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
-            console.log(`[Pose] loadZip...`, JSZip);
+            console.log(`[PoseSet] loadZip...`, JSZip);
             const jsZip = new JSZip();
-            console.log(`[Pose] init...`);
+            console.log(`[PoseSet] init...`);
             const zip = yield jsZip.loadAsync(buffer, { base64: false });
             if (!zip)
                 throw 'ZIPファイルを読み込めませんでした';
@@ -597,22 +673,23 @@ class Pose {
                 throw 'ZIPファイルに pose.json が含まれていません';
             }
             this.loadJson(json);
+            const fileExt = this.getFileExtensionByMime(this.IMAGE_MIME);
             if (includeImages) {
                 for (const pose of this.poses) {
                     if (!pose.frameImageDataUrl) {
-                        const frameImageFileName = `frame-${pose.timeMiliseconds}.jpg`;
+                        const frameImageFileName = `frame-${pose.timeMiliseconds}.${fileExt}`;
                         const imageBase64 = yield ((_b = zip
                             .file(frameImageFileName)) === null || _b === void 0 ? void 0 : _b.async('base64'));
                         if (imageBase64) {
-                            pose.frameImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+                            pose.frameImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
                         }
                     }
                     if (!pose.poseImageDataUrl) {
-                        const poseImageFileName = `pose-${pose.timeMiliseconds}.jpg`;
+                        const poseImageFileName = `pose-${pose.timeMiliseconds}.${fileExt}`;
                         const imageBase64 = yield ((_c = zip
                             .file(poseImageFileName)) === null || _c === void 0 ? void 0 : _c.async('base64'));
                         if (imageBase64) {
-                            pose.poseImageDataUrl = `data:image/jpeg;base64,${imageBase64}`;
+                            pose.poseImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
                         }
                     }
                 }
@@ -620,8 +697,8 @@ class Pose {
         });
     }
 }
-Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
-Pose.POSE_VECTOR_MAPPINGS = [
+PoseSet.IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
+PoseSet.POSE_VECTOR_MAPPINGS = [
     'rightWristToRightElbow',
     'rightElbowToRightShoulder',
     'leftWristToLeftElbow',
@@ -634,31 +711,31 @@ Pose.POSE_VECTOR_MAPPINGS = [
 class PoseComposerService {
     constructor() { }
     init(videoName) {
-        const pose = new Pose();
-        pose.setVideoName(videoName);
-        return pose;
+        const poseSet = new PoseSet();
+        poseSet.setVideoName(videoName);
+        return poseSet;
     }
-    downloadAsJson(pose) {
+    downloadAsJson(poseSet) {
         return __awaiter(this, void 0, void 0, function* () {
-            const blob = new Blob([yield pose.getJson()], {
+            const blob = new Blob([yield poseSet.getJson()], {
                 type: 'application/json',
             });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.target = '_blank';
-            a.download = `${pose.getVideoName()}-poses.json`;
+            a.download = `${poseSet.getVideoName()}-poses.json`;
             a.click();
         });
     }
-    downloadAsZip(pose) {
+    downloadAsZip(poseSet) {
         return __awaiter(this, void 0, void 0, function* () {
-            const content = yield pose.getZip();
+            const content = yield poseSet.getZip();
             const url = window.URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
             a.target = '_blank';
-            a.download = `${pose.getVideoName()}-poses.zip`;
+            a.download = `${poseSet.getVideoName()}-poses.zip`;
             a.click();
         });
     }
@@ -873,5 +950,5 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
  * Generated bundle index. Do not edit.
  */
 
-export { NgxMpPoseExtractorComponent, NgxMpPoseExtractorModule, NgxMpPoseExtractorService, Pose, PoseComposerService, PoseExtractorService };
+export { NgxMpPoseExtractorComponent, NgxMpPoseExtractorModule, NgxMpPoseExtractorService, PoseComposerService, PoseExtractorService, PoseSet };
 //# sourceMappingURL=ngx-mp-pose-extractor.mjs.map

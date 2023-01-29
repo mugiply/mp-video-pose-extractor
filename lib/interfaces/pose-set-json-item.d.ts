@@ -1,4 +1,4 @@
-export interface PoseJsonItem {
+export interface PoseSetJsonItem {
     t: number;
     d: number;
     pose?: number[][];

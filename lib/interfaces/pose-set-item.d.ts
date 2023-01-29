@@ -1,5 +1,5 @@
 import { PoseVector } from './pose-vector';
-export interface PoseItem {
+export interface PoseSetItem {
     timeMiliseconds: number;
     durationMiliseconds: number;
     pose?: number[][];
