@@ -8,7 +8,6 @@ export declare class PoseSet {
     private videoMetadata;
     poses: PoseSetItem[];
     isFinalized?: boolean;
-    static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
     static readonly POSE_VECTOR_MAPPINGS: string[];
     private readonly IMAGE_WIDTH;
     private readonly IMAGE_MIME;
@@ -27,6 +26,7 @@ export declare class PoseSet {
     getPoseByTime(timeMiliseconds: number): PoseSetItem | undefined;
     pushPose(videoTimeMiliseconds: number, frameImageDataUrl: string | undefined, poseImageDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
     finalize(): Promise<void>;
+    removeDuplicatedPoses(): void;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
     static getPoseVector(poseLandmarks: {
         x: number;

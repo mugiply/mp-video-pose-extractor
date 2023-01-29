@@ -330,7 +330,7 @@ class PoseSet {
         // 画像書き出し時の設定
         this.IMAGE_WIDTH = 1080;
         this.IMAGE_MIME = 'image/webp';
-        this.IMAGE_QUALITY = 0.7;
+        this.IMAGE_QUALITY = 0.8;
         // 画像の余白除去
         this.IMAGE_MARGIN_TRIMMING_COLOR = '#000000';
         this.IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD = 50;
@@ -373,6 +373,7 @@ class PoseSet {
         return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
     }
     pushPose(videoTimeMiliseconds, frameImageDataUrl, poseImageDataUrl, videoWidth, videoHeight, videoDuration, results) {
+        var _a, _b;
         this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
         if (results.poseLandmarks === undefined)
             return;
@@ -394,8 +395,27 @@ class PoseSet {
         const pose = {
             timeMiliseconds: videoTimeMiliseconds,
             durationMiliseconds: -1,
-            pose: poseLandmarksWithWorldCoordinate.map((landmark) => {
-                return [landmark.x, landmark.y, landmark.z, landmark.visibility];
+            pose: poseLandmarksWithWorldCoordinate.map((worldCoordinateLandmark) => {
+                return [
+                    worldCoordinateLandmark.x,
+                    worldCoordinateLandmark.y,
+                    worldCoordinateLandmark.z,
+                    worldCoordinateLandmark.visibility,
+                ];
+            }),
+            leftHand: (_a = results.leftHandLandmarks) === null || _a === void 0 ? void 0 : _a.map((normalizedLandmark) => {
+                return [
+                    normalizedLandmark.x,
+                    normalizedLandmark.y,
+                    normalizedLandmark.z,
+                ];
+            }),
+            rightHand: (_b = results.leftHandLandmarks) === null || _b === void 0 ? void 0 : _b.map((normalizedLandmark) => {
+                return [
+                    normalizedLandmark.x,
+                    normalizedLandmark.y,
+                    normalizedLandmark.z,
+                ];
             }),
             vectors: poseVector,
             frameImageDataUrl: frameImageDataUrl,
@@ -419,24 +439,6 @@ class PoseSet {
                 this.isFinalized = true;
                 return;
             }
-            // 全ポーズを比較して類似ポーズを削除
-            if (PoseSet.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
-                const newPoses = [];
-                for (const poseA of this.poses) {
-                    let isDuplicated = false;
-                    for (const poseB of newPoses) {
-                        if (PoseSet.isSimilarPose(poseA.vectors, poseB.vectors)) {
-                            isDuplicated = true;
-                            break;
-                        }
-                    }
-                    if (isDuplicated)
-                        continue;
-                    newPoses.push(poseA);
-                }
-                console.info(`[PoseSet] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
-                this.poses = newPoses;
-            }
             // 最後のポーズの持続時間を設定
             if (1 <= this.poses.length) {
                 const lastPose = this.poses[this.poses.length - 1];
@@ -446,6 +448,8 @@ class PoseSet {
                         poseDurationMiliseconds;
                 }
             }
+            // 重複ポーズを除去
+            this.removeDuplicatedPoses();
             // 画像のマージンを取得
             console.log(`[PoseSet] finalize - Detecting image margins...`);
             let imageTrimming = undefined;
@@ -475,8 +479,8 @@ class PoseSet {
                 if (!pose.frameImageDataUrl || !pose.poseImageDataUrl) {
                     continue;
                 }
+                console.log(`[PoseSet] finalize - Processing image...`, pose.timeMiliseconds);
                 // 画像を整形 - フレーム画像
-                console.log(`[PoseSet] finalize - Processing frame image...`, pose.timeMiliseconds);
                 yield imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
                 if (imageTrimming) {
                     yield imageTrimmer.crop(0, imageTrimming.marginTop, imageTrimming.width, imageTrimming.heightNew);
@@ -513,6 +517,24 @@ class PoseSet {
             }
             this.isFinalized = true;
         });
+    }
+    removeDuplicatedPoses() {
+        // 全ポーズを比較して類似ポーズを削除
+        const newPoses = [];
+        for (const poseA of this.poses) {
+            let isDuplicated = false;
+            for (const poseB of newPoses) {
+                if (PoseSet.isSimilarPose(poseA.vectors, poseB.vectors)) {
+                    isDuplicated = true;
+                    break;
+                }
+            }
+            if (isDuplicated)
+                continue;
+            newPoses.push(poseA);
+        }
+        console.info(`[PoseSet] removeDuplicatedPoses - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
+        this.poses = newPoses;
     }
     getSimilarPoses(results, threshold = 0.9) {
         const poseVector = PoseSet.getPoseVector(results.ea);
@@ -653,8 +675,10 @@ class PoseSet {
                     return {
                         t: pose.timeMiliseconds,
                         d: pose.durationMiliseconds,
-                        pose: pose.pose,
-                        vectors: poseVector,
+                        p: pose.pose,
+                        l: pose.leftHand,
+                        r: pose.rightHand,
+                        v: poseVector,
                     };
                 }),
                 poseLandmarkMapppings: poseLandmarkMappings,
@@ -674,12 +698,14 @@ class PoseSet {
         this.poses = parsedJson.poses.map((item) => {
             const poseVector = {};
             PoseSet.POSE_VECTOR_MAPPINGS.map((key, index) => {
-                poseVector[key] = item.vectors[index];
+                poseVector[key] = item.v[index];
             });
             return {
                 timeMiliseconds: item.t,
                 durationMiliseconds: item.d,
-                pose: item.pose,
+                pose: item.p,
+                leftHand: item.l,
+                rightHand: item.r,
                 vectors: poseVector,
                 frameImageDataUrl: undefined,
             };
@@ -723,7 +749,6 @@ class PoseSet {
         });
     }
 }
-PoseSet.IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
 PoseSet.POSE_VECTOR_MAPPINGS = [
     'rightWristToRightElbow',
     'rightElbowToRightShoulder',
