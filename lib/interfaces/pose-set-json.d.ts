@@ -6,6 +6,7 @@ export interface PoseSetJson {
         width: number;
         height: number;
         duration: number;
+        firstPoseDetectedTime: number;
     };
     poses: PoseSetJsonItem[];
     poseLandmarkMapppings: string[];

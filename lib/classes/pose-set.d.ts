@@ -13,6 +13,8 @@ export declare class PoseSet {
     private readonly IMAGE_WIDTH;
     private readonly IMAGE_MIME;
     private readonly IMAGE_QUALITY;
+    private readonly IMAGE_MARGIN_TRIMMING_COLOR;
+    private readonly IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD;
     private readonly IMAGE_BACKGROUND_REPLACE_SRC_COLOR;
     private readonly IMAGE_BACKGROUND_REPLACE_DST_COLOR;
     private readonly IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD;

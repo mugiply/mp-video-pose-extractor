@@ -66,16 +66,16 @@ class ImageTrimmer {
         this.canvas = canvas;
         this.context = context;
     }
-    async trimMargin(marginColor) {
+    async trimMargin(marginColor, diffThreshold = 10) {
         if (this.canvas === undefined)
             throw new Error('Image is not loaded');
         // マージンを検出する範囲を指定 (左端から0〜20%)
         const edgeDetectionRangeMinX = 0;
         const edgeDetectionRangeMaxX = Math.floor(this.canvas.width * 0.2);
         // マージンの端を検出
-        const edgePositionFromTop = await this.getVerticalEdgePositionOfColor(marginColor, 'top', edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
+        const edgePositionFromTop = await this.getVerticalEdgePositionOfColor(marginColor, 'top', diffThreshold, edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
         const marginTop = edgePositionFromTop != null ? edgePositionFromTop : 0;
-        const edgePositionFromBottom = await this.getVerticalEdgePositionOfColor(marginColor, 'bottom', edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
+        const edgePositionFromBottom = await this.getVerticalEdgePositionOfColor(marginColor, 'bottom', diffThreshold, edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
         const marginBottom = edgePositionFromBottom != null
             ? edgePositionFromBottom
             : this.canvas.height;
@@ -154,7 +154,7 @@ class ImageTrimmer {
         }
         return marginColor;
     }
-    async getVerticalEdgePositionOfColor(color, direction, minX, maxX) {
+    async getVerticalEdgePositionOfColor(color, direction, diffThreshold, minX, maxX) {
         if (!this.canvas || !this.context) {
             return null;
         }
@@ -177,7 +177,8 @@ class ImageTrimmer {
                     const blue = imageData.data[idx + 2];
                     const alpha = imageData.data[idx + 3];
                     const colorCode = this.rgbToHexColorCode(red, green, blue);
-                    if (color == colorCode) {
+                    if (color == colorCode ||
+                        this.isSimilarColor(color, colorCode, diffThreshold)) {
                         if (edgePositionY < y) {
                             edgePositionY = y;
                         }
@@ -202,7 +203,8 @@ class ImageTrimmer {
                     const blue = imageData.data[idx + 2];
                     const alpha = imageData.data[idx + 3];
                     const colorCode = this.rgbToHexColorCode(red, green, blue);
-                    if (color == colorCode) {
+                    if (color == colorCode ||
+                        this.isSimilarColor(color, colorCode, diffThreshold)) {
                         if (edgePositionY > y) {
                             edgePositionY = y;
                         }
@@ -306,15 +308,19 @@ class PoseSet {
         this.IMAGE_WIDTH = 1080;
         this.IMAGE_MIME = 'image/webp';
         this.IMAGE_QUALITY = 0.7;
+        // 画像の余白除去
+        this.IMAGE_MARGIN_TRIMMING_COLOR = '#000000';
+        this.IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD = 50;
         // 画像の背景色置換
         this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR = '#016AFD';
         this.IMAGE_BACKGROUND_REPLACE_DST_COLOR = '#FFFFFF00';
-        this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 100;
+        this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD = 130;
         this.videoMetadata = {
             name: '',
             width: 0,
             height: 0,
             duration: 0,
+            firstPoseDetectedTime: 0,
         };
     }
     getVideoName() {
@@ -347,6 +353,9 @@ class PoseSet {
         this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
         if (results.poseLandmarks === undefined)
             return;
+        if (this.poses.length === 0) {
+            this.videoMetadata.firstPoseDetectedTime = videoTimeMiliseconds;
+        }
         const poseLandmarksWithWorldCoordinate = results.ea
             ? results.ea
             : [];
@@ -413,6 +422,29 @@ class PoseSet {
                     poseDurationMiliseconds;
             }
         }
+        // 画像のマージンを取得
+        console.log(`[PoseSet] finalize - Detecting image margins...`);
+        let imageTrimming = undefined;
+        for (const pose of this.poses) {
+            let imageTrimmer = new ImageTrimmer();
+            if (!pose.frameImageDataUrl) {
+                continue;
+            }
+            await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
+            const marginColor = await imageTrimmer.getMarginColor();
+            console.log(`[PoseSet] finalize - Detected margin color...`, pose.timeMiliseconds, marginColor);
+            if (marginColor === null)
+                continue;
+            if (marginColor !== this.IMAGE_MARGIN_TRIMMING_COLOR) {
+                continue;
+            }
+            const trimmed = await imageTrimmer.trimMargin(marginColor, this.IMAGE_MARGIN_TRIMMING_DIFF_THRESHOLD);
+            if (!trimmed)
+                continue;
+            imageTrimming = trimmed;
+            console.log(`[PoseSet] finalize - Determined image trimming positions...`, trimmed);
+            break;
+        }
         // 画像を整形
         for (const pose of this.poses) {
             let imageTrimmer = new ImageTrimmer();
@@ -422,16 +454,9 @@ class PoseSet {
             // 画像を整形 - フレーム画像
             console.log(`[PoseSet] finalize - Processing frame image...`, pose.timeMiliseconds);
             await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
-            const marginColor = await imageTrimmer.getMarginColor();
-            console.log(`[PoseSet] finalize - Detected margin color...`, pose.timeMiliseconds, marginColor);
-            if (marginColor === null)
-                continue;
-            if (marginColor !== '#000000') {
-                console.warn(`[PoseSet] finalize - Skip this frame image, because the margin color is not black.`);
-                continue;
+            if (imageTrimming) {
+                await imageTrimmer.crop(0, imageTrimming.marginTop, imageTrimming.width, imageTrimming.heightNew);
             }
-            const trimmed = await imageTrimmer.trimMargin(marginColor);
-            console.log(`[PoseSet] finalize - Trimmed margin of frame image...`, pose.timeMiliseconds, trimmed);
             await imageTrimmer.replaceColor(this.IMAGE_BACKGROUND_REPLACE_SRC_COLOR, this.IMAGE_BACKGROUND_REPLACE_DST_COLOR, this.IMAGE_BACKGROUND_REPLACE_DIFF_THRESHOLD);
             await imageTrimmer.resizeWithFit({
                 width: this.IMAGE_WIDTH,
@@ -447,8 +472,9 @@ class PoseSet {
             // 画像を整形 - ポーズプレビュー画像
             imageTrimmer = new ImageTrimmer();
             await imageTrimmer.loadByDataUrl(pose.poseImageDataUrl);
-            await imageTrimmer.crop(0, trimmed.marginTop, trimmed.width, trimmed.heightNew);
-            console.log(`[PoseSet] finalize - Trimmed margin of pose preview image...`, pose.timeMiliseconds, trimmed);
+            if (imageTrimming) {
+                await imageTrimmer.crop(0, imageTrimming.marginTop, imageTrimming.width, imageTrimming.heightNew);
+            }
             await imageTrimmer.resizeWithFit({
                 width: this.IMAGE_WIDTH,
             });

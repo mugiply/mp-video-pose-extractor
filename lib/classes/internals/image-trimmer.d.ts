@@ -3,7 +3,7 @@ export declare class ImageTrimmer {
     private context?;
     constructor();
     loadByDataUrl(dataUrl: string): Promise<void>;
-    trimMargin(marginColor: string): Promise<{
+    trimMargin(marginColor: string, diffThreshold?: number): Promise<{
         marginTop: number;
         marginBottom: number;
         heightNew: number;
@@ -13,7 +13,7 @@ export declare class ImageTrimmer {
     crop(x: number, y: number, w: number, h: number): Promise<void>;
     replaceColor(srcColor: string, dstColor: string, diffThreshold: number): Promise<void>;
     getMarginColor(): Promise<string | null>;
-    getVerticalEdgePositionOfColor(color: string, direction: 'top' | 'bottom', minX?: number, maxX?: number): Promise<number | null | undefined>;
+    getVerticalEdgePositionOfColor(color: string, direction: 'top' | 'bottom', diffThreshold: number, minX?: number, maxX?: number): Promise<number | null | undefined>;
     getWidth(): Promise<number | undefined>;
     getHeight(): Promise<number | undefined>;
     resizeWithFit(param: {
