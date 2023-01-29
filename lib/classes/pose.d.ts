@@ -10,6 +10,8 @@ export declare class Pose {
     isFinalized?: boolean;
     static readonly IS_ENABLE_DUPLICATED_POSE_REDUCTION = true;
     static readonly POSE_VECTOR_MAPPINGS: string[];
+    private readonly IMAGE_JPEG_QUALITY;
+    private readonly IMAGE_WIDTH;
     constructor();
     getVideoName(): string;
     setVideoName(videoName: string): void;
@@ -18,7 +20,7 @@ export declare class Pose {
     getPoses(): PoseItem[];
     getPoseByTime(timeMiliseconds: number): PoseItem | undefined;
     pushPose(videoTimeMiliseconds: number, frameImageJpegDataUrl: string | undefined, poseImageJpegDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
-    finalize(): void;
+    finalize(): Promise<void>;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
     static getPoseVector(poseLandmarks: {
         x: number;
@@ -28,7 +30,7 @@ export declare class Pose {
     static isSimilarPose(poseVectorA: PoseVector, poseVectorB: PoseVector, threshold?: number): boolean;
     static getPoseSimilarity(poseVectorA: PoseVector, poseVectorB: PoseVector): number;
     getZip(): Promise<Blob>;
-    getJson(): string;
+    getJson(): Promise<string>;
     loadJson(json: string | any): void;
     loadZip(buffer: ArrayBuffer, includeImages?: boolean): Promise<void>;
 }

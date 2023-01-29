@@ -17,7 +17,6 @@ export declare class PoseExtractorService {
     private posePreviewCanvasContext?;
     private handPreviewCanvasElement?;
     private handPreviewCanvasContext?;
-    private readonly IMAGE_JPEG_QUALITY;
     constructor();
     getPosePreviewMediaStream(): MediaStream | undefined;
     getHandPreviewMediaStream(): MediaStream | undefined;

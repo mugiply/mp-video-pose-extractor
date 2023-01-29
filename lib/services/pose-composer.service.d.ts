@@ -6,7 +6,7 @@ import * as i0 from "@angular/core";
 export declare class PoseComposerService {
     constructor();
     init(videoName: string): Pose;
-    downloadAsJson(pose: Pose): void;
+    downloadAsJson(pose: Pose): Promise<void>;
     downloadAsZip(pose: Pose): Promise<void>;
     static ɵfac: i0.ɵɵFactoryDeclaration<PoseComposerService, never>;
     static ɵprov: i0.ɵɵInjectableDeclaration<PoseComposerService>;

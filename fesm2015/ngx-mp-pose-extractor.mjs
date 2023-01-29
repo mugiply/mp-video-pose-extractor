@@ -49,10 +49,232 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
                 }]
         }] });
 
+class ImageTrimmer {
+    constructor() { }
+    loadByDataUrl(dataUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const image = yield new Promise((resolve, reject) => {
+                const image = new Image();
+                image.src = dataUrl;
+                image.onload = () => {
+                    resolve(image);
+                };
+            });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            context.drawImage(image, 0, 0);
+            this.canvas = canvas;
+            this.context = context;
+        });
+    }
+    trimMargin(marginColor) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.canvas === undefined)
+                throw new Error('Image is not loaded');
+            // マージンを検出する範囲を指定 (左端から0〜20%)
+            const edgeDetectionRangeMinX = 0;
+            const edgeDetectionRangeMaxX = Math.floor(this.canvas.width * 0.2);
+            // マージンの端を検出
+            const edgePositionFromTop = yield this.getVerticalEdgePositionOfColor(marginColor, 'top', edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
+            const marginTop = edgePositionFromTop != null ? edgePositionFromTop : 0;
+            const edgePositionFromBottom = yield this.getVerticalEdgePositionOfColor(marginColor, 'bottom', edgeDetectionRangeMinX, edgeDetectionRangeMaxX);
+            const marginBottom = edgePositionFromBottom != null
+                ? edgePositionFromBottom
+                : this.canvas.height;
+            const oldHeight = this.canvas.height;
+            const newHeight = marginBottom - marginTop;
+            this.crop(0, marginTop, this.canvas.width, newHeight);
+            return {
+                marginTop: marginTop,
+                marginBottom: marginBottom,
+                heightNew: newHeight,
+                heightOld: oldHeight,
+                width: this.canvas.width,
+            };
+        });
+    }
+    crop(x, y, w, h) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas || !this.context)
+                return;
+            const newCanvas = document.createElement('canvas');
+            const newContext = newCanvas.getContext('2d');
+            newCanvas.width = w;
+            newCanvas.height = h;
+            newContext.drawImage(this.canvas, x, y, newCanvas.width, newCanvas.height, 0, 0, newCanvas.width, newCanvas.height);
+            this.replaceCanvas(newCanvas);
+        });
+    }
+    getMarginColor() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas || !this.context) {
+                return null;
+            }
+            let marginColor = null;
+            const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            let isBreak = false;
+            for (let x = 0; x < imageData.width && !isBreak; x++) {
+                for (let y = 0; y < imageData.height; y++) {
+                    const idx = (x + y * imageData.width) * 4;
+                    const red = imageData.data[idx + 0];
+                    const green = imageData.data[idx + 1];
+                    const blue = imageData.data[idx + 2];
+                    const alpha = imageData.data[idx + 3];
+                    const colorCode = this.rgbToHexColorCode(red, green, blue);
+                    if (marginColor != colorCode) {
+                        if (marginColor === null) {
+                            marginColor = colorCode;
+                        }
+                        else {
+                            isBreak = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return marginColor;
+        });
+    }
+    getVerticalEdgePositionOfColor(color, direction, minX, maxX) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas || !this.context) {
+                return null;
+            }
+            if (minX === undefined) {
+                minX = 0;
+            }
+            if (maxX === undefined) {
+                maxX = this.canvas.width;
+            }
+            const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            let isBreak = false;
+            let edgePositionY;
+            if (direction === 'top') {
+                edgePositionY = 0;
+                for (let y = 0; y < imageData.height; y++) {
+                    for (let x = 0; x < maxX && !isBreak; x++) {
+                        const idx = (x + y * imageData.width) * 4;
+                        const red = imageData.data[idx + 0];
+                        const green = imageData.data[idx + 1];
+                        const blue = imageData.data[idx + 2];
+                        const alpha = imageData.data[idx + 3];
+                        const colorCode = this.rgbToHexColorCode(red, green, blue);
+                        if (color == colorCode) {
+                            if (edgePositionY < y) {
+                                edgePositionY = y;
+                            }
+                        }
+                        else {
+                            isBreak = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (direction === 'bottom') {
+                edgePositionY = this.canvas.height;
+                for (let y = imageData.height - 1; y >= 0; y--) {
+                    for (let x = 0; x < imageData.width && !isBreak; x++) {
+                        const idx = (x + y * imageData.width) * 4;
+                        const red = imageData.data[idx + 0];
+                        const green = imageData.data[idx + 1];
+                        const blue = imageData.data[idx + 2];
+                        const alpha = imageData.data[idx + 3];
+                        const colorCode = this.rgbToHexColorCode(red, green, blue);
+                        if (color == colorCode) {
+                            if (edgePositionY > y) {
+                                edgePositionY = y;
+                            }
+                        }
+                        else {
+                            isBreak = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            return edgePositionY;
+        });
+    }
+    getWidth() {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            return (_a = this.canvas) === null || _a === void 0 ? void 0 : _a.width;
+        });
+    }
+    getHeight() {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            return (_a = this.canvas) === null || _a === void 0 ? void 0 : _a.height;
+        });
+    }
+    resizeWithFit(param) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas) {
+                return;
+            }
+            let newWidth = 0, newHeight = 0;
+            if (param.width && this.canvas.width > param.width) {
+                newWidth = param.width ? param.width : this.canvas.width;
+                newHeight = this.canvas.height * (newWidth / this.canvas.width);
+            }
+            else if (param.height && this.canvas.height > param.height) {
+                newHeight = param.height ? param.height : this.canvas.height;
+                newWidth = this.canvas.width * (newHeight / this.canvas.height);
+            }
+            else {
+                return;
+            }
+            const newCanvas = document.createElement('canvas');
+            const newContext = newCanvas.getContext('2d');
+            newCanvas.width = newWidth;
+            newCanvas.height = newHeight;
+            newContext.drawImage(this.canvas, 0, 0, newWidth, newHeight);
+            this.replaceCanvas(newCanvas);
+        });
+    }
+    replaceCanvas(canvas) {
+        if (!this.canvas || !this.context) {
+            this.canvas = canvas;
+            this.context = this.canvas.getContext('2d');
+            return;
+        }
+        this.canvas.width = 0;
+        this.canvas.height = 0;
+        delete this.canvas;
+        delete this.context;
+        this.canvas = canvas;
+        this.context = this.canvas.getContext('2d');
+    }
+    getDataUrl(mime = 'image/jpeg', jpegQuality) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.canvas) {
+                return null;
+            }
+            if (mime === 'image/jpeg') {
+                return this.canvas.toDataURL(mime, jpegQuality);
+            }
+            else {
+                return this.canvas.toDataURL(mime);
+            }
+        });
+    }
+    rgbToHexColorCode(r, g, b) {
+        return '#' + this.valueToHex(r) + this.valueToHex(g) + this.valueToHex(b);
+    }
+    valueToHex(value) {
+        return ('0' + value.toString(16)).slice(-2);
+    }
+}
+
 class Pose {
     constructor() {
         this.poses = [];
         this.isFinalized = false;
+        this.IMAGE_JPEG_QUALITY = 0.7;
+        this.IMAGE_WIDTH = 900;
         this.videoMetadata = {
             name: '',
             width: 0,
@@ -125,38 +347,83 @@ class Pose {
         this.poses.push(pose);
     }
     finalize() {
-        if (0 == this.poses.length) {
-            this.isFinalized = true;
-            return;
-        }
-        // 全ポーズを比較して類似ポーズを削除
-        if (Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
-            const newPoses = [];
-            for (const poseA of this.poses) {
-                let isDuplicated = false;
-                for (const poseB of newPoses) {
-                    if (Pose.isSimilarPose(poseA.vectors, poseB.vectors)) {
-                        isDuplicated = true;
-                        break;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (0 == this.poses.length) {
+                this.isFinalized = true;
+                return;
+            }
+            // 全ポーズを比較して類似ポーズを削除
+            if (Pose.IS_ENABLE_DUPLICATED_POSE_REDUCTION) {
+                const newPoses = [];
+                for (const poseA of this.poses) {
+                    let isDuplicated = false;
+                    for (const poseB of newPoses) {
+                        if (Pose.isSimilarPose(poseA.vectors, poseB.vectors)) {
+                            isDuplicated = true;
+                            break;
+                        }
                     }
+                    if (isDuplicated)
+                        continue;
+                    newPoses.push(poseA);
                 }
-                if (isDuplicated)
+                console.info(`[Pose] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
+                this.poses = newPoses;
+            }
+            // 最後のポーズの持続時間を設定
+            if (1 <= this.poses.length) {
+                const lastPose = this.poses[this.poses.length - 1];
+                if (lastPose.durationMiliseconds == -1) {
+                    const poseDurationMiliseconds = this.videoMetadata.duration - lastPose.timeMiliseconds;
+                    this.poses[this.poses.length - 1].durationMiliseconds =
+                        poseDurationMiliseconds;
+                }
+            }
+            // 画像を整形
+            for (const pose of this.poses) {
+                let imageTrimmer = new ImageTrimmer();
+                if (!pose.frameImageDataUrl || !pose.poseImageDataUrl) {
                     continue;
-                newPoses.push(poseA);
+                }
+                // 画像を整形 - フレーム画像
+                console.log(`[Pose] finalize - Processing frame image...`, pose.timeMiliseconds);
+                yield imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
+                const marginColor = yield imageTrimmer.getMarginColor();
+                console.log(`[Pose] finalize - Detected margin color...`, pose.timeMiliseconds, marginColor);
+                if (marginColor === null)
+                    continue;
+                if (marginColor !== '#000000') {
+                    console.warn(`[Pose] finalize - Skip this frame image, because the margin color is not black.`);
+                    continue;
+                }
+                const trimmed = yield imageTrimmer.trimMargin(marginColor);
+                console.log(`[Pose] finalize - Trimmed margin of frame image...`, pose.timeMiliseconds, trimmed);
+                yield imageTrimmer.resizeWithFit({
+                    width: this.IMAGE_WIDTH,
+                });
+                let newDataUrl = yield imageTrimmer.getDataUrl('image/jpeg', this.IMAGE_JPEG_QUALITY);
+                if (!newDataUrl) {
+                    console.warn(`[Pose] finalize - Could not get the new dataurl for frame image`);
+                    continue;
+                }
+                pose.frameImageDataUrl = newDataUrl;
+                // 画像を整形 - ポーズプレビュー画像
+                imageTrimmer = new ImageTrimmer();
+                yield imageTrimmer.loadByDataUrl(pose.poseImageDataUrl);
+                yield imageTrimmer.crop(0, trimmed.marginTop, trimmed.width, trimmed.heightNew);
+                console.log(`[Pose] finalize - Trimmed margin of pose preview image...`, pose.timeMiliseconds, trimmed);
+                yield imageTrimmer.resizeWithFit({
+                    width: this.IMAGE_WIDTH,
+                });
+                newDataUrl = yield imageTrimmer.getDataUrl('image/jpeg', this.IMAGE_JPEG_QUALITY);
+                if (!newDataUrl) {
+                    console.warn(`[Pose] finalize - Could not get the new dataurl for pose preview image`);
+                    continue;
+                }
+                pose.poseImageDataUrl = newDataUrl;
             }
-            console.info(`[Pose] getJson - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`);
-            this.poses = newPoses;
-        }
-        // 最後のポーズの持続時間を設定
-        if (1 <= this.poses.length) {
-            const lastPose = this.poses[this.poses.length - 1];
-            if (lastPose.durationMiliseconds == -1) {
-                const poseDurationMiliseconds = this.videoMetadata.duration - lastPose.timeMiliseconds;
-                this.poses[this.poses.length - 1].durationMiliseconds =
-                    poseDurationMiliseconds;
-            }
-        }
-        this.isFinalized = true;
+            this.isFinalized = true;
+        });
     }
     getSimilarPoses(results, threshold = 0.9) {
         const poseVector = Pose.getPoseVector(results.ea);
@@ -228,7 +495,7 @@ class Pose {
     getZip() {
         return __awaiter(this, void 0, void 0, function* () {
             const jsZip = new JSZip();
-            jsZip.file('poses.json', this.getJson());
+            jsZip.file('poses.json', yield this.getJson());
             for (const pose of this.poses) {
                 if (pose.frameImageDataUrl) {
                     try {
@@ -261,35 +528,37 @@ class Pose {
         });
     }
     getJson() {
-        if (this.videoMetadata === undefined || this.poses === undefined)
-            return '{}';
-        if (!this.isFinalized) {
-            this.finalize();
-        }
-        let poseLandmarkMappings = [];
-        for (const key of Object.keys(POSE_LANDMARKS)) {
-            const index = POSE_LANDMARKS[key];
-            poseLandmarkMappings[index] = key;
-        }
-        const json = {
-            generator: 'mp-video-pose-extractor',
-            version: 1,
-            video: this.videoMetadata,
-            poses: this.poses.map((pose) => {
-                const poseVector = [];
-                for (const key of Pose.POSE_VECTOR_MAPPINGS) {
-                    poseVector.push(pose.vectors[key]);
-                }
-                return {
-                    t: pose.timeMiliseconds,
-                    d: pose.durationMiliseconds,
-                    pose: pose.pose,
-                    vectors: poseVector,
-                };
-            }),
-            poseLandmarkMapppings: poseLandmarkMappings,
-        };
-        return JSON.stringify(json);
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.videoMetadata === undefined || this.poses === undefined)
+                return '{}';
+            if (!this.isFinalized) {
+                yield this.finalize();
+            }
+            let poseLandmarkMappings = [];
+            for (const key of Object.keys(POSE_LANDMARKS)) {
+                const index = POSE_LANDMARKS[key];
+                poseLandmarkMappings[index] = key;
+            }
+            const json = {
+                generator: 'mp-video-pose-extractor',
+                version: 1,
+                video: this.videoMetadata,
+                poses: this.poses.map((pose) => {
+                    const poseVector = [];
+                    for (const key of Pose.POSE_VECTOR_MAPPINGS) {
+                        poseVector.push(pose.vectors[key]);
+                    }
+                    return {
+                        t: pose.timeMiliseconds,
+                        d: pose.durationMiliseconds,
+                        pose: pose.pose,
+                        vectors: poseVector,
+                    };
+                }),
+                poseLandmarkMapppings: poseLandmarkMappings,
+            };
+            return JSON.stringify(json);
+        });
     }
     loadJson(json) {
         const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
@@ -370,15 +639,17 @@ class PoseComposerService {
         return pose;
     }
     downloadAsJson(pose) {
-        const blob = new Blob([pose.getJson()], {
-            type: 'application/json',
+        return __awaiter(this, void 0, void 0, function* () {
+            const blob = new Blob([yield pose.getJson()], {
+                type: 'application/json',
+            });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.download = `${pose.getVideoName()}-poses.json`;
+            a.click();
         });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.download = `${pose.getVideoName()}-poses.json`;
-        a.click();
     }
     downloadAsZip(pose) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -409,7 +680,6 @@ i0.ɵɵngDeclareClassMetadata({ minVersion: "12.0.0", version: "15.0.4", ngImpor
 class PoseExtractorService {
     constructor() {
         this.onResultsEventEmitter = new EventEmitter();
-        this.IMAGE_JPEG_QUALITY = 0.8;
         this.init();
     }
     getPosePreviewMediaStream() {
@@ -478,8 +748,8 @@ class PoseExtractorService {
         this.posePreviewCanvasContext.clearRect(0, 0, this.posePreviewCanvasElement.width, this.posePreviewCanvasElement.height);
         // 検出に使用したフレーム画像を描画
         this.posePreviewCanvasContext.drawImage(results.image, 0, 0, this.posePreviewCanvasElement.width, this.posePreviewCanvasElement.height);
-        // 検出に使用したフレーム画像を保持
-        const sourceImageDataUrl = this.posePreviewCanvasElement.toDataURL('image/jpeg', this.IMAGE_JPEG_QUALITY);
+        // 検出に使用したフレーム画像を保持 (加工されていない画像)
+        const sourceImageDataUrl = this.posePreviewCanvasElement.toDataURL('image/png');
         // 肘と手をつなぐ線を描画
         this.posePreviewCanvasContext.lineWidth = 5;
         if (poseLandmarks) {
@@ -548,8 +818,10 @@ class PoseExtractorService {
         // イベントを送出
         this.onResultsEventEmitter.emit({
             mpResults: results,
+            // 加工されていない画像 (PNG)
             sourceImageDataUrl: sourceImageDataUrl,
-            posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL('image/jpeg', this.IMAGE_JPEG_QUALITY),
+            // 加工された画像 (PNG)
+            posePreviewImageDataUrl: this.posePreviewCanvasElement.toDataURL('image/png'),
         });
         // 完了
         this.posePreviewCanvasContext.restore();
