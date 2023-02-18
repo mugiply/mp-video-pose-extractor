@@ -1,14 +1,16 @@
 import { Results } from '@mediapipe/holistic';
 import { PoseSetItem } from '../interfaces/pose-set-item';
-import { PoseVector } from '../interfaces/pose-vector';
+import { BodyVector } from '../interfaces/body-vector';
 import { SimilarPoseItem } from '../interfaces/matched-pose-item';
+import { HandVector } from '../interfaces/hand-vector';
 export declare class PoseSet {
     generator?: string;
     version?: number;
     private videoMetadata;
     poses: PoseSetItem[];
     isFinalized?: boolean;
-    static readonly POSE_VECTOR_MAPPINGS: string[];
+    static readonly BODY_VECTOR_MAPPINGS: string[];
+    static readonly HAND_VECTOR_MAPPINGS: string[];
     private readonly IMAGE_WIDTH;
     private readonly IMAGE_MIME;
     private readonly IMAGE_QUALITY;
@@ -28,13 +30,24 @@ export declare class PoseSet {
     finalize(): Promise<void>;
     removeDuplicatedPoses(): void;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
-    static getPoseVector(poseLandmarks: {
+    static getBodyVector(poseLandmarks: {
         x: number;
         y: number;
         z: number;
-    }[]): PoseVector | undefined;
-    static isSimilarPose(poseVectorA: PoseVector, poseVectorB: PoseVector, threshold?: number): boolean;
-    static getPoseSimilarity(poseVectorA: PoseVector, poseVectorB: PoseVector): number;
+    }[]): BodyVector | undefined;
+    static getHandVectors(leftHandLandmarks: {
+        x: number;
+        y: number;
+        z: number;
+    }[], rightHandLandmarks: {
+        x: number;
+        y: number;
+        z: number;
+    }[]): HandVector | undefined;
+    static isSimilarBodyPose(bodyVectorA: BodyVector, bodyVectorB: BodyVector, threshold?: number): boolean;
+    static getBodyPoseSimilarity(bodyVectorA: BodyVector, bodyVectorB: BodyVector): number;
+    static isSimilarHandPose(handVectorA: HandVector, handVectorB: HandVector, threshold?: number): boolean;
+    static getHandSimilarity(handVectorA: HandVector, handVectorB: HandVector): number;
     getZip(): Promise<Blob>;
     getFileExtensionByMime(IMAGE_MIME: string): "png" | "jpg" | "webp";
     getJson(): Promise<string>;

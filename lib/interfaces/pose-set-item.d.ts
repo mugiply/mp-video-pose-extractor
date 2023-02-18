@@ -1,11 +1,13 @@
-import { PoseVector } from './pose-vector';
+import { HandVector } from './hand-vector';
+import { BodyVector } from './body-vector';
 export interface PoseSetItem {
     timeMiliseconds: number;
     durationMiliseconds: number;
     pose?: number[][];
     leftHand?: number[][];
     rightHand?: number[][];
-    vectors: PoseVector;
+    bodyVectors: BodyVector;
+    handVectors?: HandVector;
     frameImageDataUrl?: string;
     poseImageDataUrl?: string;
 }
