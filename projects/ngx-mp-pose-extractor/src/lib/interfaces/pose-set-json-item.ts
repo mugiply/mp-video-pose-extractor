@@ -9,6 +9,8 @@ export interface PoseSetJsonItem {
   l?: number[][];
   // rightHand
   r?: number[][];
-  // vectors
+  // body-vectors
   v: number[][];
+  // hand-vectors
+  h?: number[][];
 }

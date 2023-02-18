@@ -6,7 +6,7 @@ export * from './lib/ngx-mp-pose-extractor.service';
 export * from './lib/ngx-mp-pose-extractor.component';
 export * from './lib/ngx-mp-pose-extractor.module';
 
-export * from './lib/interfaces/pose-vector';
+export * from './lib/interfaces/body-vector';
 export * from './lib/interfaces/pose-set-item';
 export * from './lib/interfaces/pose-set-json-item';
 export * from './lib/interfaces/pose-set-json';
