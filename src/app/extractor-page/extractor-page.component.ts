@@ -1,6 +1,7 @@
 import {
   Component,
   ElementRef,
+  NgZone,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -15,6 +16,9 @@ import {
 } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { Subscription } from 'rxjs';
 
+// @ts-ignore
+import { MP4Demuxer } from './mp4-decorder/demuxer_mp4.mjs';
+
 @Component({
   selector: 'app-extractor-page',
   templateUrl: './extractor-page.component.html',
@@ -25,7 +29,8 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   @ViewChild('sourceVideo')
   public sourceVideoElement?: ElementRef;
 
-  public sourceVideoUrl?: SafeResourceUrl;
+  //public sourceVideoUrl?: SafeResourceUrl;
+  public sourceVideoStream?: MediaStream;
   public sourceVideoFileName?: string = undefined;
 
   public posePreviewMediaStream?: MediaStream;
@@ -37,13 +42,22 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
   public poseSet?: PoseSet;
 
+  public mp4boxFile: any;
+  public sourceVideoFrames?: any[];
+  private sourceVideoLoadTimer: any = null;
+  private sourceFrameCanvas?: HTMLCanvasElement;
+  private sourceFrameCanvasContext?: CanvasRenderingContext2D;
+  private pendingFrame: any = null;
+  private lastFrameDrawedAt?: number;
+
   private onResultsEventEmitterSubscription!: Subscription;
 
   constructor(
     public poseComposerService: PoseComposerService,
     private poseExtractorService: PoseExtractorService,
     private domSanitizer: DomSanitizer,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -89,8 +103,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
     const videoFile = files[0];
     const videoFileUrl = URL.createObjectURL(videoFile);
-    this.sourceVideoUrl =
-      this.domSanitizer.bypassSecurityTrustResourceUrl(videoFileUrl);
+    //this.sourceVideoUrl = this.domSanitizer.bypassSecurityTrustResourceUrl(videoFileUrl);
 
     this.sourceVideoFileName = videoFile.name;
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
@@ -98,29 +111,109 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     this.state = 'processing';
     this.poseSet = this.poseComposerService.init(videoName);
 
-    await this.onVideoFrame();
+    // 動画のデコードを開始
+    this.sourceFrameCanvas = document.createElement('canvas');
+    this.sourceFrameCanvasContext = this.sourceFrameCanvas.getContext('2d')!;
+    this.sourceVideoFrames = [];
+
+    // @ts-ignore
+    const decoder = new VideoDecoder({
+      output: (frame: any) => {
+        // 動画のフレームを取得したとき
+        this.onVideoFrame(frame);
+        this.lastFrameDrawedAt = Date.now();
+      },
+      error: (e: any) => {
+        console.error(
+          `[ExtractorPageComponent] onChooseSourceVideoFile - Error occurred`,
+          e
+        );
+      },
+    });
+
+    const demuxer = new MP4Demuxer(videoFileUrl, {
+      onConfig: (config: any) => {
+        decoder.configure(config);
+      },
+      onChunk: (chunk: any) => {
+        decoder.decode(chunk);
+      },
+      setStatus: (type: string, message: string) => {
+        console.log(
+          `[ExtractorPageComponent] - MP4Demuxer setStatus`,
+          type,
+          message
+        );
+      },
+    });
+
+    // 動画の全フレームが揃うまで待つ
+    this.lastFrameDrawedAt = Date.now();
+    this.sourceVideoLoadTimer = setInterval(() => {
+      if (Date.now() - this.lastFrameDrawedAt! > 1000) {
+        clearInterval(this.sourceVideoLoadTimer);
+        this.onVideoAllFramesLoaded();
+      }
+    }, 1000);
+  }
+
+  async onVideoFrame(frame: any) {
+    console.log(`[ExtractorPageComponent] - onVideoFrame`, frame);
+
+    this.sourceVideoFrames?.push(frame);
+
+    if (this.pendingFrame) {
+      this.pendingFrame.close();
+    } else {
+      requestAnimationFrame(() => {
+        this.renderAnimationFrame();
+      });
+    }
+    this.pendingFrame = frame;
+  }
+
+  async onVideoAllFramesLoaded() {
+    const message = this.snackBar.open(
+      this.sourceVideoFrames?.length +
+        'frames からポーズ検出をおこなっています... '
+    );
 
     this.posePreviewMediaStream =
       this.poseExtractorService.getPosePreviewMediaStream();
 
     this.handPreviewMediaStream =
       this.poseExtractorService.getHandPreviewMediaStream();
+
+    // TODO: 指定フレームごとにポーズ検出処理をする
+    // this.sourceVideoFrames[0].timestamp
   }
 
-  async onVideoFrame() {
-    const videoElement = this.sourceVideoElement?.nativeElement;
-    if (!videoElement) return;
-
-    if (videoElement.paused || videoElement.ended) {
-      setTimeout(() => {
-        this.onVideoFrame();
-      }, 500);
+  async renderAnimationFrame() {
+    if (
+      !this.sourceFrameCanvas ||
+      !this.sourceFrameCanvasContext ||
+      !this.pendingFrame
+    )
       return;
-    }
 
-    await this.poseExtractorService.onVideoFrame(videoElement);
-    await new Promise(requestAnimationFrame);
-    this.onVideoFrame();
+    this.sourceFrameCanvas.width = this.pendingFrame.displayWidth;
+    this.sourceFrameCanvas.height = this.pendingFrame.displayHeight;
+    this.sourceFrameCanvasContext.drawImage(
+      this.pendingFrame,
+      0,
+      0,
+      this.sourceFrameCanvas.width,
+      this.sourceFrameCanvas.height
+    );
+    this.pendingFrame.close();
+
+    this.ngZone.run(() => {
+      if (!this.sourceVideoStream && this.sourceFrameCanvas) {
+        this.sourceVideoStream = this.sourceFrameCanvas.captureStream(30);
+      }
+    });
+
+    this.pendingFrame = null;
   }
 
   async onPoseDetected(

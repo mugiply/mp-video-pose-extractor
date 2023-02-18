@@ -112,7 +112,7 @@
         <video
           #sourceVideo
           class="preview-video"
-          [src]="sourceVideoUrl"
+          [srcObject]="this.sourceVideoStream"
           autoplay
           muted
           (ended)="onSourceVideoEnded($event)"

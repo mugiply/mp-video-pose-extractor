@@ -12,9 +12,7 @@
     "noFallthroughCasesInSwitch": true,
     "sourceMap": true,
     "paths": {
-      "ngx-mp-pose-extractor": [
-        "dist/ngx-mp-pose-extractor"
-      ]
+      "ngx-mp-pose-extractor": ["dist/ngx-mp-pose-extractor"]
     },
     "declaration": false,
     "downlevelIteration": true,
@@ -24,10 +22,8 @@
     "target": "ES2022",
     "module": "ES2022",
     "useDefineForClassFields": false,
-    "lib": [
-      "ES2022",
-      "dom"
-    ]
+    "lib": ["ES2022", "dom"],
+    "types": ["dom-webcodecs"]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
