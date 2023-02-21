@@ -153,7 +153,7 @@ export class PoseSet {
       : [];
     if (poseLandmarksWithWorldCoordinate.length === 0) {
       console.warn(
-        `[PoseSet] pushPose - Could not get the pose with the world coordinate`,
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the pose with the world coordinate`,
         results
       );
       return;
@@ -162,10 +162,30 @@ export class PoseSet {
     const bodyVector = PoseSet.getBodyVector(poseLandmarksWithWorldCoordinate);
     if (!bodyVector) {
       console.warn(
-        `[PoseSet] pushPose - Could not get the body vector`,
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the body vector`,
         poseLandmarksWithWorldCoordinate
       );
       return;
+    }
+
+    if (
+      results.leftHandLandmarks === undefined &&
+      results.rightHandLandmarks === undefined
+    ) {
+      console.warn(
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand landmarks`,
+        results
+      );
+    } else if (results.leftHandLandmarks === undefined) {
+      console.warn(
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the left hand landmarks`,
+        results
+      );
+    } else if (results.rightHandLandmarks === undefined) {
+      console.warn(
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the right hand landmarks`,
+        results
+      );
     }
 
     const handVector = PoseSet.getHandVectors(
@@ -174,7 +194,7 @@ export class PoseSet {
     );
     if (!handVector) {
       console.warn(
-        `[PoseSet] pushPose - Could not get the hand vector`,
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand vector`,
         results
       );
     }
@@ -220,7 +240,11 @@ export class PoseSet {
       );
       const isSimilarHandPose =
         lastPose.handVectors && pose.handVectors
-          ? PoseSet.isSimilarHandPose(lastPose.handVectors, pose.handVectors)
+          ? PoseSet.isSimilarHandPose(
+              lastPose.handVectors,
+              pose.handVectors,
+              0.8
+            )
           : true;
 
       if (isSimilarBodyPose && isSimilarHandPose) {
@@ -482,117 +506,184 @@ export class PoseSet {
     leftHandLandmarks: { x: number; y: number; z: number }[],
     rightHandLandmarks: { x: number; y: number; z: number }[]
   ): HandVector | undefined {
+    if (
+      (rightHandLandmarks === undefined || rightHandLandmarks.length === 0) &&
+      (leftHandLandmarks === undefined || leftHandLandmarks.length === 0)
+    ) {
+      return undefined;
+    }
+
     return {
       // 右手 - 親指
-      rightThumbTipToFirstJoint: [
-        rightHandLandmarks[4].x - rightHandLandmarks[3].x,
-        rightHandLandmarks[4].y - rightHandLandmarks[3].y,
-        rightHandLandmarks[4].z - rightHandLandmarks[3].z,
-      ],
-      rightThumbFirstJointToSecondJoint: [
-        rightHandLandmarks[3].x - rightHandLandmarks[2].x,
-        rightHandLandmarks[3].y - rightHandLandmarks[2].y,
-        rightHandLandmarks[3].z - rightHandLandmarks[2].z,
-      ],
+      rightThumbTipToFirstJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[4].x - rightHandLandmarks[3].x,
+              rightHandLandmarks[4].y - rightHandLandmarks[3].y,
+              rightHandLandmarks[4].z - rightHandLandmarks[3].z,
+            ],
+      rightThumbFirstJointToSecondJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[3].x - rightHandLandmarks[2].x,
+              rightHandLandmarks[3].y - rightHandLandmarks[2].y,
+              rightHandLandmarks[3].z - rightHandLandmarks[2].z,
+            ],
       // 右手 - 人差し指
-      rightIndexFingerTipToFirstJoint: [
-        rightHandLandmarks[8].x - rightHandLandmarks[7].x,
-        rightHandLandmarks[8].y - rightHandLandmarks[7].y,
-        rightHandLandmarks[8].z - rightHandLandmarks[7].z,
-      ],
-      rightIndexFingerFirstJointToSecondJoint: [
-        rightHandLandmarks[7].x - rightHandLandmarks[6].x,
-        rightHandLandmarks[7].y - rightHandLandmarks[6].y,
-        rightHandLandmarks[7].z - rightHandLandmarks[6].z,
-      ],
+      rightIndexFingerTipToFirstJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[8].x - rightHandLandmarks[7].x,
+              rightHandLandmarks[8].y - rightHandLandmarks[7].y,
+              rightHandLandmarks[8].z - rightHandLandmarks[7].z,
+            ],
+      rightIndexFingerFirstJointToSecondJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[7].x - rightHandLandmarks[6].x,
+              rightHandLandmarks[7].y - rightHandLandmarks[6].y,
+              rightHandLandmarks[7].z - rightHandLandmarks[6].z,
+            ],
       // 右手 - 中指
-      rightMiddleFingerTipToFirstJoint: [
-        rightHandLandmarks[12].x - rightHandLandmarks[11].x,
-        rightHandLandmarks[12].y - rightHandLandmarks[11].y,
-        rightHandLandmarks[12].z - rightHandLandmarks[11].z,
-      ],
-      rightMiddleFingerFirstJointToSecondJoint: [
-        rightHandLandmarks[11].x - rightHandLandmarks[10].x,
-        rightHandLandmarks[11].y - rightHandLandmarks[10].y,
-        rightHandLandmarks[11].z - rightHandLandmarks[10].z,
-      ],
+      rightMiddleFingerTipToFirstJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[12].x - rightHandLandmarks[11].x,
+              rightHandLandmarks[12].y - rightHandLandmarks[11].y,
+              rightHandLandmarks[12].z - rightHandLandmarks[11].z,
+            ],
+      rightMiddleFingerFirstJointToSecondJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[11].x - rightHandLandmarks[10].x,
+              rightHandLandmarks[11].y - rightHandLandmarks[10].y,
+              rightHandLandmarks[11].z - rightHandLandmarks[10].z,
+            ],
       // 右手 - 薬指
-      rightRingFingerTipToFirstJoint: [
-        rightHandLandmarks[16].x - rightHandLandmarks[15].x,
-        rightHandLandmarks[16].y - rightHandLandmarks[15].y,
-        rightHandLandmarks[16].z - rightHandLandmarks[15].z,
-      ],
-      rightRingFingerFirstJointToSecondJoint: [
-        rightHandLandmarks[15].x - rightHandLandmarks[14].x,
-        rightHandLandmarks[15].y - rightHandLandmarks[14].y,
-        rightHandLandmarks[15].z - rightHandLandmarks[14].z,
-      ],
+      rightRingFingerTipToFirstJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[16].x - rightHandLandmarks[15].x,
+              rightHandLandmarks[16].y - rightHandLandmarks[15].y,
+              rightHandLandmarks[16].z - rightHandLandmarks[15].z,
+            ],
+      rightRingFingerFirstJointToSecondJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[15].x - rightHandLandmarks[14].x,
+              rightHandLandmarks[15].y - rightHandLandmarks[14].y,
+              rightHandLandmarks[15].z - rightHandLandmarks[14].z,
+            ],
       // 右手 - 小指
-      rightPinkyFingerTipToFirstJoint: [
-        rightHandLandmarks[20].x - rightHandLandmarks[19].x,
-        rightHandLandmarks[20].y - rightHandLandmarks[19].y,
-        rightHandLandmarks[20].z - rightHandLandmarks[19].z,
-      ],
-      rightPinkyFingerFirstJointToSecondJoint: [
-        rightHandLandmarks[19].x - rightHandLandmarks[18].x,
-        rightHandLandmarks[19].y - rightHandLandmarks[18].y,
-        rightHandLandmarks[19].z - rightHandLandmarks[18].z,
-      ],
+      rightPinkyFingerTipToFirstJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[20].x - rightHandLandmarks[19].x,
+              rightHandLandmarks[20].y - rightHandLandmarks[19].y,
+              rightHandLandmarks[20].z - rightHandLandmarks[19].z,
+            ],
+      rightPinkyFingerFirstJointToSecondJoint:
+        rightHandLandmarks === undefined || rightHandLandmarks.length === 0
+          ? null
+          : [
+              rightHandLandmarks[19].x - rightHandLandmarks[18].x,
+              rightHandLandmarks[19].y - rightHandLandmarks[18].y,
+              rightHandLandmarks[19].z - rightHandLandmarks[18].z,
+            ],
       // 左手 - 親指
-      leftThumbTipToFirstJoint: [
-        leftHandLandmarks[4].x - leftHandLandmarks[3].x,
-        leftHandLandmarks[4].y - leftHandLandmarks[3].y,
-        leftHandLandmarks[4].z - leftHandLandmarks[3].z,
-      ],
-      leftThumbFirstJointToSecondJoint: [
-        leftHandLandmarks[3].x - leftHandLandmarks[2].x,
-        leftHandLandmarks[3].y - leftHandLandmarks[2].y,
-        leftHandLandmarks[3].z - leftHandLandmarks[2].z,
-      ],
+      leftThumbTipToFirstJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[4].x - leftHandLandmarks[3].x,
+              leftHandLandmarks[4].y - leftHandLandmarks[3].y,
+              leftHandLandmarks[4].z - leftHandLandmarks[3].z,
+            ],
+      leftThumbFirstJointToSecondJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[3].x - leftHandLandmarks[2].x,
+              leftHandLandmarks[3].y - leftHandLandmarks[2].y,
+              leftHandLandmarks[3].z - leftHandLandmarks[2].z,
+            ],
       // 左手 - 人差し指
-      leftIndexFingerTipToFirstJoint: [
-        leftHandLandmarks[8].x - leftHandLandmarks[7].x,
-        leftHandLandmarks[8].y - leftHandLandmarks[7].y,
-        leftHandLandmarks[8].z - leftHandLandmarks[7].z,
-      ],
-      leftIndexFingerFirstJointToSecondJoint: [
-        leftHandLandmarks[7].x - leftHandLandmarks[6].x,
-        leftHandLandmarks[7].y - leftHandLandmarks[6].y,
-        leftHandLandmarks[7].z - leftHandLandmarks[6].z,
-      ],
+      leftIndexFingerTipToFirstJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[8].x - leftHandLandmarks[7].x,
+              leftHandLandmarks[8].y - leftHandLandmarks[7].y,
+              leftHandLandmarks[8].z - leftHandLandmarks[7].z,
+            ],
+      leftIndexFingerFirstJointToSecondJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[7].x - leftHandLandmarks[6].x,
+              leftHandLandmarks[7].y - leftHandLandmarks[6].y,
+              leftHandLandmarks[7].z - leftHandLandmarks[6].z,
+            ],
       // 左手 - 中指
-      leftMiddleFingerTipToFirstJoint: [
-        leftHandLandmarks[12].x - leftHandLandmarks[11].x,
-        leftHandLandmarks[12].y - leftHandLandmarks[11].y,
-        leftHandLandmarks[12].z - leftHandLandmarks[11].z,
-      ],
-      leftMiddleFingerFirstJointToSecondJoint: [
-        leftHandLandmarks[11].x - leftHandLandmarks[10].x,
-        leftHandLandmarks[11].y - leftHandLandmarks[10].y,
-        leftHandLandmarks[11].z - leftHandLandmarks[10].z,
-      ],
+      leftMiddleFingerTipToFirstJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[12].x - leftHandLandmarks[11].x,
+              leftHandLandmarks[12].y - leftHandLandmarks[11].y,
+              leftHandLandmarks[12].z - leftHandLandmarks[11].z,
+            ],
+      leftMiddleFingerFirstJointToSecondJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[11].x - leftHandLandmarks[10].x,
+              leftHandLandmarks[11].y - leftHandLandmarks[10].y,
+              leftHandLandmarks[11].z - leftHandLandmarks[10].z,
+            ],
       // 左手 - 薬指
-      leftRingFingerTipToFirstJoint: [
-        leftHandLandmarks[16].x - leftHandLandmarks[15].x,
-        leftHandLandmarks[16].y - leftHandLandmarks[15].y,
-        leftHandLandmarks[16].z - leftHandLandmarks[15].z,
-      ],
-      leftRingFingerFirstJointToSecondJoint: [
-        leftHandLandmarks[15].x - leftHandLandmarks[14].x,
-        leftHandLandmarks[15].y - leftHandLandmarks[14].y,
-        leftHandLandmarks[15].z - leftHandLandmarks[14].z,
-      ],
+      leftRingFingerTipToFirstJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[16].x - leftHandLandmarks[15].x,
+              leftHandLandmarks[16].y - leftHandLandmarks[15].y,
+              leftHandLandmarks[16].z - leftHandLandmarks[15].z,
+            ],
+      leftRingFingerFirstJointToSecondJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[15].x - leftHandLandmarks[14].x,
+              leftHandLandmarks[15].y - leftHandLandmarks[14].y,
+              leftHandLandmarks[15].z - leftHandLandmarks[14].z,
+            ],
       // 左手 - 小指
-      leftPinkyFingerTipToFirstJoint: [
-        leftHandLandmarks[20].x - leftHandLandmarks[19].x,
-        leftHandLandmarks[20].y - leftHandLandmarks[19].y,
-        leftHandLandmarks[20].z - leftHandLandmarks[19].z,
-      ],
-      leftPinkyFingerFirstJointToSecondJoint: [
-        leftHandLandmarks[19].x - leftHandLandmarks[18].x,
-        leftHandLandmarks[19].y - leftHandLandmarks[18].y,
-        leftHandLandmarks[19].z - leftHandLandmarks[18].z,
-      ],
+      leftPinkyFingerTipToFirstJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[20].x - leftHandLandmarks[19].x,
+              leftHandLandmarks[20].y - leftHandLandmarks[19].y,
+              leftHandLandmarks[20].z - leftHandLandmarks[19].z,
+            ],
+      leftPinkyFingerFirstJointToSecondJoint:
+        leftHandLandmarks === undefined || leftHandLandmarks.length === 0
+          ? null
+          : [
+              leftHandLandmarks[19].x - leftHandLandmarks[18].x,
+              leftHandLandmarks[19].y - leftHandLandmarks[18].y,
+              leftHandLandmarks[19].z - leftHandLandmarks[18].z,
+            ],
     };
   }
 
@@ -646,6 +737,15 @@ export class PoseSet {
     threshold = 0.9
   ): boolean {
     const similarity = PoseSet.getHandSimilarity(handVectorA, handVectorB);
+    /*console.log(
+      `[PoseSet] isSimilarHandPose`,
+      similarity,
+      threshold,
+      similarity >= threshold
+    );*/
+    if (similarity === -1) {
+      return false;
+    }
     return similarity >= threshold;
   }
 
@@ -653,104 +753,142 @@ export class PoseSet {
     handVectorA: HandVector,
     handVectorB: HandVector
   ): number {
-    const cosSimilarities = {
-      // 右手 - 親指
-      rightThumbTipToFirstJoint: cosSimilarity(
-        handVectorA.rightThumbTipToFirstJoint,
-        handVectorB.rightThumbTipToFirstJoint
-      ),
-      rightThumbFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.rightThumbFirstJointToSecondJoint,
-        handVectorB.rightThumbFirstJointToSecondJoint
-      ),
-      // 右手 - 人差し指
-      rightIndexFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.rightIndexFingerTipToFirstJoint,
-        handVectorB.rightIndexFingerTipToFirstJoint
-      ),
-      rightIndexFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.rightIndexFingerFirstJointToSecondJoint,
-        handVectorB.rightIndexFingerFirstJointToSecondJoint
-      ),
-      // 右手 - 中指
-      rightMiddleFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.rightMiddleFingerTipToFirstJoint,
-        handVectorB.rightMiddleFingerTipToFirstJoint
-      ),
-      rightMiddleFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.rightMiddleFingerFirstJointToSecondJoint,
-        handVectorB.rightMiddleFingerFirstJointToSecondJoint
-      ),
-      // 右手 - 薬指
-      rightRingFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.rightRingFingerTipToFirstJoint,
-        handVectorB.rightRingFingerFirstJointToSecondJoint
-      ),
-      rightRingFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.rightRingFingerFirstJointToSecondJoint,
-        handVectorB.rightRingFingerFirstJointToSecondJoint
-      ),
-      // 右手 - 小指
-      rightPinkyFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.rightPinkyFingerTipToFirstJoint,
-        handVectorB.rightPinkyFingerTipToFirstJoint
-      ),
-      rightPinkyFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.rightPinkyFingerFirstJointToSecondJoint,
-        handVectorB.rightPinkyFingerFirstJointToSecondJoint
-      ),
-      // 左手 - 親指
-      leftThumbTipToFirstJoint: cosSimilarity(
-        handVectorA.leftThumbTipToFirstJoint,
-        handVectorB.leftThumbTipToFirstJoint
-      ),
-      leftThumbFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.leftThumbFirstJointToSecondJoint,
-        handVectorB.leftThumbFirstJointToSecondJoint
-      ),
-      // 左手 - 人差し指
-      leftIndexFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.leftIndexFingerTipToFirstJoint,
-        handVectorB.leftIndexFingerTipToFirstJoint
-      ),
-      leftIndexFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.leftIndexFingerFirstJointToSecondJoint,
-        handVectorB.leftIndexFingerFirstJointToSecondJoint
-      ),
-      // 左手 - 中指
-      leftMiddleFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.leftMiddleFingerTipToFirstJoint,
-        handVectorB.leftMiddleFingerTipToFirstJoint
-      ),
-      leftMiddleFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.leftMiddleFingerFirstJointToSecondJoint,
-        handVectorB.leftMiddleFingerFirstJointToSecondJoint
-      ),
-      // 左手 - 薬指
-      leftRingFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.leftRingFingerTipToFirstJoint,
-        handVectorB.leftRingFingerTipToFirstJoint
-      ),
-      leftRingFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.leftRingFingerFirstJointToSecondJoint,
-        handVectorB.leftRingFingerFirstJointToSecondJoint
-      ),
-      // 左手 - 小指
-      leftPinkyFingerTipToFirstJoint: cosSimilarity(
-        handVectorA.leftPinkyFingerTipToFirstJoint,
-        handVectorB.leftPinkyFingerTipToFirstJoint
-      ),
-      leftPinkyFingerFirstJointToSecondJoint: cosSimilarity(
-        handVectorA.leftPinkyFingerFirstJointToSecondJoint,
-        handVectorB.leftPinkyFingerFirstJointToSecondJoint
-      ),
-    };
+    const cosSimilaritiesRightHand =
+      handVectorA.rightThumbFirstJointToSecondJoint === null ||
+      handVectorB.rightThumbFirstJointToSecondJoint === null
+        ? undefined
+        : {
+            // 右手 - 親指
+            rightThumbTipToFirstJoint: cosSimilarity(
+              handVectorA.rightThumbTipToFirstJoint,
+              handVectorB.rightThumbTipToFirstJoint
+            ),
+            rightThumbFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.rightThumbFirstJointToSecondJoint,
+              handVectorB.rightThumbFirstJointToSecondJoint
+            ),
+            // 右手 - 人差し指
+            rightIndexFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.rightIndexFingerTipToFirstJoint,
+              handVectorB.rightIndexFingerTipToFirstJoint
+            ),
+            rightIndexFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.rightIndexFingerFirstJointToSecondJoint,
+              handVectorB.rightIndexFingerFirstJointToSecondJoint
+            ),
+            // 右手 - 中指
+            rightMiddleFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.rightMiddleFingerTipToFirstJoint,
+              handVectorB.rightMiddleFingerTipToFirstJoint
+            ),
+            rightMiddleFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.rightMiddleFingerFirstJointToSecondJoint,
+              handVectorB.rightMiddleFingerFirstJointToSecondJoint
+            ),
+            // 右手 - 薬指
+            rightRingFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.rightRingFingerTipToFirstJoint,
+              handVectorB.rightRingFingerFirstJointToSecondJoint
+            ),
+            rightRingFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.rightRingFingerFirstJointToSecondJoint,
+              handVectorB.rightRingFingerFirstJointToSecondJoint
+            ),
+            // 右手 - 小指
+            rightPinkyFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.rightPinkyFingerTipToFirstJoint,
+              handVectorB.rightPinkyFingerTipToFirstJoint
+            ),
+            rightPinkyFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.rightPinkyFingerFirstJointToSecondJoint,
+              handVectorB.rightPinkyFingerFirstJointToSecondJoint
+            ),
+          };
+    const cosSimilaritiesLeftHand =
+      handVectorA.leftThumbFirstJointToSecondJoint === null ||
+      handVectorB.leftThumbFirstJointToSecondJoint === null
+        ? undefined
+        : {
+            // 左手 - 親指
+            leftThumbTipToFirstJoint: cosSimilarity(
+              handVectorA.leftThumbTipToFirstJoint,
+              handVectorB.leftThumbTipToFirstJoint
+            ),
+            leftThumbFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.leftThumbFirstJointToSecondJoint,
+              handVectorB.leftThumbFirstJointToSecondJoint
+            ),
+            // 左手 - 人差し指
+            leftIndexFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.leftIndexFingerTipToFirstJoint,
+              handVectorB.leftIndexFingerTipToFirstJoint
+            ),
+            leftIndexFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.leftIndexFingerFirstJointToSecondJoint,
+              handVectorB.leftIndexFingerFirstJointToSecondJoint
+            ),
+            // 左手 - 中指
+            leftMiddleFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.leftMiddleFingerTipToFirstJoint,
+              handVectorB.leftMiddleFingerTipToFirstJoint
+            ),
+            leftMiddleFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.leftMiddleFingerFirstJointToSecondJoint,
+              handVectorB.leftMiddleFingerFirstJointToSecondJoint
+            ),
+            // 左手 - 薬指
+            leftRingFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.leftRingFingerTipToFirstJoint,
+              handVectorB.leftRingFingerTipToFirstJoint
+            ),
+            leftRingFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.leftRingFingerFirstJointToSecondJoint,
+              handVectorB.leftRingFingerFirstJointToSecondJoint
+            ),
+            // 左手 - 小指
+            leftPinkyFingerTipToFirstJoint: cosSimilarity(
+              handVectorA.leftPinkyFingerTipToFirstJoint,
+              handVectorB.leftPinkyFingerTipToFirstJoint
+            ),
+            leftPinkyFingerFirstJointToSecondJoint: cosSimilarity(
+              handVectorA.leftPinkyFingerFirstJointToSecondJoint,
+              handVectorB.leftPinkyFingerFirstJointToSecondJoint
+            ),
+          };
 
-    const cosSimilaritiesSum = Object.values(cosSimilarities).reduce(
-      (sum, value) => sum + value,
-      0
-    );
-    return cosSimilaritiesSum / Object.keys(cosSimilarities).length;
+    let cosSimilaritiesSumLeftHand = 0;
+    if (cosSimilaritiesLeftHand) {
+      cosSimilaritiesSumLeftHand = Object.values(
+        cosSimilaritiesLeftHand
+      ).reduce((sum, value) => sum + value, 0);
+    }
+
+    let cosSimilaritiesSumRightHand = 0;
+    if (cosSimilaritiesRightHand) {
+      cosSimilaritiesSumRightHand = Object.values(
+        cosSimilaritiesRightHand
+      ).reduce((sum, value) => sum + value, 0);
+    }
+
+    if (cosSimilaritiesRightHand && cosSimilaritiesLeftHand) {
+      return (
+        (cosSimilaritiesSumRightHand + cosSimilaritiesSumLeftHand) /
+        (Object.keys(cosSimilaritiesRightHand!).length +
+          Object.keys(cosSimilaritiesLeftHand!).length)
+      );
+    } else if (cosSimilaritiesSumRightHand) {
+      return (
+        cosSimilaritiesSumRightHand /
+        Object.keys(cosSimilaritiesRightHand!).length
+      );
+    } else if (cosSimilaritiesLeftHand) {
+      return (
+        cosSimilaritiesSumLeftHand /
+        Object.keys(cosSimilaritiesLeftHand!).length
+      );
+    } else {
+      return -1;
+    }
   }
 
   public async getZip(): Promise<Blob> {
@@ -836,7 +974,7 @@ export class PoseSet {
         }
 
         // HandVector の圧縮
-        let handVector: number[][] | undefined = undefined;
+        let handVector: (number[] | null)[] | undefined = undefined;
         if (pose.handVectors) {
           handVector = [];
           for (const key of PoseSet.HAND_VECTOR_MAPPINGS) {

@@ -1,32 +1,32 @@
 export interface HandVector {
   // 右手 - 親指
-  rightThumbTipToFirstJoint: number[];
-  rightThumbFirstJointToSecondJoint: number[];
+  rightThumbTipToFirstJoint: number[] | null;
+  rightThumbFirstJointToSecondJoint: number[] | null;
   // 右手 - 人差し指
-  rightIndexFingerTipToFirstJoint: number[];
-  rightIndexFingerFirstJointToSecondJoint: number[];
+  rightIndexFingerTipToFirstJoint: number[] | null;
+  rightIndexFingerFirstJointToSecondJoint: number[] | null;
   // 右手 - 中指
-  rightMiddleFingerTipToFirstJoint: number[];
-  rightMiddleFingerFirstJointToSecondJoint: number[];
+  rightMiddleFingerTipToFirstJoint: number[] | null;
+  rightMiddleFingerFirstJointToSecondJoint: number[] | null;
   // 右手 - 薬指
-  rightRingFingerTipToFirstJoint: number[];
-  rightRingFingerFirstJointToSecondJoint: number[];
+  rightRingFingerTipToFirstJoint: number[] | null;
+  rightRingFingerFirstJointToSecondJoint: number[] | null;
   // 右手 - 小指
-  rightPinkyFingerTipToFirstJoint: number[];
-  rightPinkyFingerFirstJointToSecondJoint: number[];
+  rightPinkyFingerTipToFirstJoint: number[] | null;
+  rightPinkyFingerFirstJointToSecondJoint: number[] | null;
   // 左手 - 親指
-  leftThumbTipToFirstJoint: number[];
-  leftThumbFirstJointToSecondJoint: number[];
+  leftThumbTipToFirstJoint: number[] | null;
+  leftThumbFirstJointToSecondJoint: number[] | null;
   // 左手 - 人差し指
-  leftIndexFingerTipToFirstJoint: number[];
-  leftIndexFingerFirstJointToSecondJoint: number[];
+  leftIndexFingerTipToFirstJoint: number[] | null;
+  leftIndexFingerFirstJointToSecondJoint: number[] | null;
   // 左手 - 中指
-  leftMiddleFingerTipToFirstJoint: number[];
-  leftMiddleFingerFirstJointToSecondJoint: number[];
+  leftMiddleFingerTipToFirstJoint: number[] | null;
+  leftMiddleFingerFirstJointToSecondJoint: number[] | null;
   // 左手 - 薬指
-  leftRingFingerTipToFirstJoint: number[];
-  leftRingFingerFirstJointToSecondJoint: number[];
+  leftRingFingerTipToFirstJoint: number[] | null;
+  leftRingFingerFirstJointToSecondJoint: number[] | null;
   // 左手 - 小指
-  leftPinkyFingerTipToFirstJoint: number[];
-  leftPinkyFingerFirstJointToSecondJoint: number[];
+  leftPinkyFingerTipToFirstJoint: number[] | null;
+  leftPinkyFingerFirstJointToSecondJoint: number[] | null;
 }

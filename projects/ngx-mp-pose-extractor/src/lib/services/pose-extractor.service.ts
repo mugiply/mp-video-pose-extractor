@@ -47,20 +47,32 @@ export class PoseExtractorService {
     return this.handPreviewCanvasElement.captureStream();
   }
 
-  public async onVideoFrame(videoElement: HTMLVideoElement) {
+  public async onVideoFrame(input: HTMLVideoElement | HTMLCanvasElement) {
     if (!this.holistic) return;
 
-    if (this.posePreviewCanvasElement) {
-      this.posePreviewCanvasElement.width = videoElement.videoWidth;
-      this.posePreviewCanvasElement.height = videoElement.videoHeight;
+    if (input instanceof HTMLVideoElement) {
+      if (this.posePreviewCanvasElement) {
+        this.posePreviewCanvasElement.width = input.videoWidth;
+        this.posePreviewCanvasElement.height = input.videoHeight;
+      }
+
+      if (this.handPreviewCanvasElement) {
+        this.handPreviewCanvasElement.width = input.videoWidth;
+        this.handPreviewCanvasElement.height = input.videoHeight;
+      }
+    } else if (input instanceof HTMLCanvasElement) {
+      if (this.posePreviewCanvasElement) {
+        this.posePreviewCanvasElement.width = input.width;
+        this.posePreviewCanvasElement.height = input.height;
+      }
+
+      if (this.handPreviewCanvasElement) {
+        this.handPreviewCanvasElement.width = input.width;
+        this.handPreviewCanvasElement.height = input.height;
+      }
     }
 
-    if (this.handPreviewCanvasElement) {
-      this.handPreviewCanvasElement.width = videoElement.videoWidth;
-      this.handPreviewCanvasElement.height = videoElement.videoHeight;
-    }
-
-    await this.holistic.send({ image: videoElement });
+    await this.holistic.send({ image: input });
   }
 
   private init() {

@@ -27,29 +27,52 @@ import { MP4Demuxer } from './mp4-decorder/demuxer_mp4.mjs';
 })
 export class ExtractorPageComponent implements OnInit, OnDestroy {
   @ViewChild('sourceVideo')
-  public sourceVideoElement?: ElementRef;
-
-  //public sourceVideoUrl?: SafeResourceUrl;
+  public sourceVideoElement!: ElementRef;
   public sourceVideoStream?: MediaStream;
   public sourceVideoFileName?: string = undefined;
 
   public posePreviewMediaStream?: MediaStream;
   public handPreviewMediaStream?: MediaStream;
 
-  public state: 'initial' | 'processing' | 'completed' = 'initial';
+  public state: 'initial' | 'loading' | 'processing' | 'completed' = 'initial';
 
   public mathFloor = Math.floor;
 
+  // プレビューで表示される画像
+  public previewImage: 'frame' | 'pose' = 'frame';
+
+  // 現在作成している PoseSet
   public poseSet?: PoseSet;
 
+  // 映像のフレームを抽出するための mp4box ライブラリのインスタンス
   public mp4boxFile: any;
-  public sourceVideoFrames?: any[];
+
+  // 映像の抽出されたフレーム
+  public sourceVideoFrames?: {
+    dataUrl: string;
+    timestamp: number;
+    width: number;
+    height: number;
+  }[];
+  public numOfSourceVideoFrames = 0;
+  public currentSourceVideoFrame?: {
+    dataUrl: string;
+    timestamp: number;
+    width: number;
+    height: number;
+  };
+
+  // 映像の抽出完了まで待機するためのタイマー
   private sourceVideoLoadTimer: any = null;
+
+  // 映像のフレームを抽出するためのキャンバスおよび変数
+  private readonly MINIMUM_FRAME_INTERVAL_MILISECONDS = 250;
   private sourceFrameCanvas?: HTMLCanvasElement;
   private sourceFrameCanvasContext?: CanvasRenderingContext2D;
-  private pendingFrame: any = null;
   private lastFrameDrawedAt?: number;
+  private lastFrameChoosedAt?: number;
 
+  // ポーズ検出の結果を取得するためのサブスクリプション
   private onResultsEventEmitterSubscription!: Subscription;
 
   constructor(
@@ -83,32 +106,20 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onSourceVideoEnded(event: any) {
-    if (!this.poseSet) return;
-
-    let message = this.snackBar.open('最終処理をしています...');
-    await this.poseSet.finalize();
-    message.dismiss();
-
-    this.state = 'completed';
-    message = this.snackBar.open('検出が完了しました', '保存');
-    message.onAction().subscribe(() => {
-      this.downloadPosesAsZip();
-    });
-  }
-
+  /**
+   * ソース動画が選択されたときの処理
+   */
   async onChooseSourceVideoFile(event: any) {
     const files: File[] = event.target.files;
     if (files.length === 0) return;
 
     const videoFile = files[0];
     const videoFileUrl = URL.createObjectURL(videoFile);
-    //this.sourceVideoUrl = this.domSanitizer.bypassSecurityTrustResourceUrl(videoFileUrl);
 
     this.sourceVideoFileName = videoFile.name;
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
 
-    this.state = 'processing';
+    this.state = 'loading';
     this.poseSet = this.poseComposerService.init(videoName);
 
     // 動画のデコードを開始
@@ -118,10 +129,10 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
     // @ts-ignore
     const decoder = new VideoDecoder({
-      output: (frame: any) => {
+      output: async (frame: any) => {
         // 動画のフレームを取得したとき
-        this.onVideoFrame(frame);
         this.lastFrameDrawedAt = Date.now();
+        await this.onVideoFrame(frame);
       },
       error: (e: any) => {
         console.error(
@@ -157,94 +168,187 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
+  /**
+   * ソース動画のフレームを抽出したときの処理
+   * @param frame VideoFrame
+   */
   async onVideoFrame(frame: any) {
-    console.log(`[ExtractorPageComponent] - onVideoFrame`, frame);
+    const timestampMiliseconds = frame.timestamp / 1000;
+    if (
+      this.lastFrameChoosedAt !== undefined &&
+      timestampMiliseconds - this.lastFrameChoosedAt <
+        this.MINIMUM_FRAME_INTERVAL_MILISECONDS
+    ) {
+      frame.close();
+      return;
+    }
 
-    this.sourceVideoFrames?.push(frame);
+    this.lastFrameChoosedAt = timestampMiliseconds;
+    await this.renderVideoFrame(frame);
 
-    if (this.pendingFrame) {
-      this.pendingFrame.close();
-    } else {
-      requestAnimationFrame(() => {
-        this.renderAnimationFrame();
+    const dataUrl = this.sourceFrameCanvas?.toDataURL();
+    if (dataUrl && this.sourceVideoFrames) {
+      this.sourceVideoFrames.push({
+        dataUrl: dataUrl,
+        timestamp: timestampMiliseconds,
+        width: frame.codedWidth,
+        height: frame.codedHeight,
       });
     }
-    this.pendingFrame = frame;
+
+    frame.close();
   }
 
-  async onVideoAllFramesLoaded() {
-    const message = this.snackBar.open(
-      this.sourceVideoFrames?.length +
-        'frames からポーズ検出をおこなっています... '
-    );
-
-    this.posePreviewMediaStream =
-      this.poseExtractorService.getPosePreviewMediaStream();
-
-    this.handPreviewMediaStream =
-      this.poseExtractorService.getHandPreviewMediaStream();
-
-    // TODO: 指定フレームごとにポーズ検出処理をする
-    // this.sourceVideoFrames[0].timestamp
-  }
-
-  async renderAnimationFrame() {
-    if (
-      !this.sourceFrameCanvas ||
-      !this.sourceFrameCanvasContext ||
-      !this.pendingFrame
-    )
+  /**
+   * ソース動画のフレーム描画
+   */
+  async renderVideoFrame(frame: any) {
+    if (!this.sourceFrameCanvas || !this.sourceFrameCanvasContext) {
       return;
+    }
 
-    this.sourceFrameCanvas.width = this.pendingFrame.displayWidth;
-    this.sourceFrameCanvas.height = this.pendingFrame.displayHeight;
+    this.sourceFrameCanvas.width = frame.displayWidth;
+    this.sourceFrameCanvas.height = frame.displayHeight;
     this.sourceFrameCanvasContext.drawImage(
-      this.pendingFrame,
+      frame,
       0,
       0,
       this.sourceFrameCanvas.width,
       this.sourceFrameCanvas.height
     );
-    this.pendingFrame.close();
-
-    this.ngZone.run(() => {
-      if (!this.sourceVideoStream && this.sourceFrameCanvas) {
-        this.sourceVideoStream = this.sourceFrameCanvas.captureStream(30);
-      }
-    });
-
-    this.pendingFrame = null;
   }
 
+  /**
+   * ソース動画の全てのフレームから抽出完了したときの処理
+   */
+  async onVideoAllFramesLoaded() {
+    if (!this.sourceVideoFrames) {
+      return;
+    }
+
+    this.numOfSourceVideoFrames = this.sourceVideoFrames.length;
+
+    const message = this.snackBar.open(
+      this.numOfSourceVideoFrames +
+        ' frames からポーズ検出をおこなっています... '
+    );
+    this.state = 'processing';
+    console.log(
+      `[ExtractorPageComponent] - onVideoAllFramesLoaded`,
+      this.sourceVideoFrames
+    );
+
+    if (!this.sourceVideoStream && this.sourceFrameCanvas) {
+      this.sourceVideoStream = this.sourceFrameCanvas.captureStream(30);
+    }
+
+    // 検出されたポーズをプレビューするためのストリームを生成
+    this.posePreviewMediaStream =
+      this.poseExtractorService.getPosePreviewMediaStream();
+
+    // 検出された手をプレビューするためのストリームを生成
+    this.handPreviewMediaStream =
+      this.poseExtractorService.getHandPreviewMediaStream();
+
+    // ポーズ検出を開始
+    await this.detectPoseOfNextVideoFrame();
+  }
+
+  async detectPoseOfNextVideoFrame() {
+    if (!this.sourceFrameCanvas || !this.sourceFrameCanvasContext) {
+      throw new Error('sourceFrameCanvas is not initialized');
+    } else if (!this.sourceVideoFrames) {
+      return;
+    } else if (this.sourceVideoFrames.length === 0) {
+      this.onPoseDetectionCompleted();
+      return;
+    }
+
+    const frame = this.sourceVideoFrames.shift();
+    if (!frame) {
+      throw new Error('frame is not initialized');
+    }
+    this.currentSourceVideoFrame = frame;
+
+    try {
+      let img = new Image();
+      img.src = frame.dataUrl;
+      await img.decode();
+
+      this.sourceFrameCanvas.width = frame.width;
+      this.sourceFrameCanvas.height = frame.height;
+      this.sourceFrameCanvasContext.drawImage(
+        img,
+        0,
+        0,
+        this.sourceFrameCanvas.width,
+        this.sourceFrameCanvas.height
+      );
+    } catch (e) {
+      console.error(
+        `[ExtractorPageComponent] detectPoseOfNextVideoFrame - Error occurred`,
+        e,
+        frame
+      );
+      await this.detectPoseOfNextVideoFrame();
+      return;
+    }
+
+    this.poseExtractorService.onVideoFrame(this.sourceFrameCanvas);
+  }
+
+  /**
+   * ポーズを検出したときの処理
+   * @param results 検出結果
+   * @param sourceImageDataUrl ソース動画のフレーム画像 (DataURL)
+   * @param posePreviewImageDataUrl ポーズのプレビュー画像 (DataURL)
+   */
   async onPoseDetected(
     results: Results,
     sourceImageDataUrl: string,
     posePreviewImageDataUrl: string
   ) {
-    if (!this.poseSet) return;
+    if (!this.poseSet || !this.currentSourceVideoFrame) return;
 
-    const videoElement = this.sourceVideoElement?.nativeElement;
-    if (!videoElement) return;
+    const frame = this.currentSourceVideoFrame;
 
-    const sourceVideoTimeMiliseconds = Math.floor(
-      this.sourceVideoElement?.nativeElement.currentTime * 1000
-    );
+    const sourceVideoTimeMiliseconds = Math.floor(frame.timestamp);
 
-    const sourceVideoDurationMiliseconds = Math.floor(
-      this.sourceVideoElement?.nativeElement.duration * 1000
-    );
+    const sourceVideoDurationMiliseconds = 0;
 
     this.poseSet.pushPose(
       sourceVideoTimeMiliseconds,
       sourceImageDataUrl,
       posePreviewImageDataUrl,
-      videoElement.videoWidth,
-      videoElement.videoHeight,
+      frame.width,
+      frame.height,
       sourceVideoDurationMiliseconds,
       results
     );
+
+    await this.detectPoseOfNextVideoFrame();
   }
 
+  /**
+   * ポーズの検出が完了したときの処理
+   */
+  async onPoseDetectionCompleted() {
+    if (!this.poseSet) return;
+
+    let message = this.snackBar.open('最終処理をしています...');
+    await this.poseSet.finalize();
+    message.dismiss();
+
+    this.state = 'completed';
+    message = this.snackBar.open('検出が完了しました', '保存');
+    message.onAction().subscribe(() => {
+      this.downloadPosesAsZip();
+    });
+  }
+
+  /**
+   * ポーズセットのダウンロード (ZIP ファイル)
+   */
   public downloadPosesAsZip() {
     if (!this.poseSet) return;
 
@@ -261,6 +365,9 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     message.dismiss();
   }
 
+  /**
+   * ポーズセットのダウンロード (JSON ファイル)
+   */
   public downloadPosesAsJson() {
     if (!this.poseSet) return;
 

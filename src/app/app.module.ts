@@ -9,6 +9,7 @@ import { ExtractorPageComponent } from './extractor-page/extractor-page.componen
 import { TesterPageComponent } from './tester-page/tester-page.component';
 import { TesterComponent } from './tester-page/tester.component';
 import { NgxMpPoseExtractorModule } from 'ngx-mp-pose-extractor';
+import { FormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
@@ -20,6 +21,7 @@ import { NgxMpPoseExtractorModule } from 'ngx-mp-pose-extractor';
   imports: [
     BrowserModule,
     AppRoutingModule,
+    FormsModule,
     BrowserAnimationsModule,
     MaterialModule,
     NgxMpPoseExtractorModule,
