@@ -12,6 +12,13 @@ import {
 } from '@mediapipe/holistic';
 import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
 
+export interface OnResultsEvent {
+  mpResults: Results;
+  frameImageDataUrl: string;
+  posePreviewImageDataUrl: string;
+  faceFrameImageDataUrl?: string;
+}
+
 /**
  * MediaPipe を用いて動画からポーズを抽出するためのサービス
  *
@@ -19,11 +26,8 @@ import { drawConnectors, drawLandmarks, lerp } from '@mediapipe/drawing_utils';
  */
 @Injectable()
 export class PoseExtractorService {
-  public onResultsEventEmitter: EventEmitter<{
-    mpResults: Results;
-    sourceImageDataUrl: string;
-    posePreviewImageDataUrl: string;
-  }> = new EventEmitter();
+  public onResultsEventEmitter: EventEmitter<OnResultsEvent> =
+    new EventEmitter();
 
   private holistic?: Holistic;
 
@@ -32,6 +36,9 @@ export class PoseExtractorService {
 
   private handPreviewCanvasElement?: HTMLCanvasElement;
   private handPreviewCanvasContext?: CanvasRenderingContext2D;
+
+  private facePreviewCanvasElement?: HTMLCanvasElement;
+  private facePreviewCanvasContext?: CanvasRenderingContext2D;
 
   constructor() {
     this.init();
@@ -47,6 +54,11 @@ export class PoseExtractorService {
     return this.handPreviewCanvasElement.captureStream();
   }
 
+  public getFacePreviewMediaStream(): MediaStream | undefined {
+    if (!this.facePreviewCanvasElement) return;
+    return this.facePreviewCanvasElement.captureStream();
+  }
+
   public async onVideoFrame(input: HTMLVideoElement | HTMLCanvasElement) {
     if (!this.holistic) return;
 
@@ -60,6 +72,11 @@ export class PoseExtractorService {
         this.handPreviewCanvasElement.width = input.videoWidth;
         this.handPreviewCanvasElement.height = input.videoHeight;
       }
+
+      if (this.facePreviewCanvasElement) {
+        this.facePreviewCanvasElement.width = input.videoWidth;
+        this.facePreviewCanvasElement.height = input.videoHeight;
+      }
     } else if (input instanceof HTMLCanvasElement) {
       if (this.posePreviewCanvasElement) {
         this.posePreviewCanvasElement.width = input.width;
@@ -69,6 +86,11 @@ export class PoseExtractorService {
       if (this.handPreviewCanvasElement) {
         this.handPreviewCanvasElement.width = input.width;
         this.handPreviewCanvasElement.height = input.height;
+      }
+
+      if (this.facePreviewCanvasElement) {
+        this.facePreviewCanvasElement.width = input.width;
+        this.facePreviewCanvasElement.height = input.height;
       }
     }
 
@@ -83,6 +105,10 @@ export class PoseExtractorService {
     this.handPreviewCanvasElement = document.createElement('canvas');
     this.handPreviewCanvasContext =
       this.handPreviewCanvasElement.getContext('2d') || undefined;
+
+    this.facePreviewCanvasElement = document.createElement('canvas');
+    this.facePreviewCanvasContext =
+      this.facePreviewCanvasElement.getContext('2d') || undefined;
 
     this.holistic = new Holistic({
       locateFile: (file) => {
@@ -222,7 +248,7 @@ export class PoseExtractorService {
       },
     });
 
-    // 手の領域のみのプレビューを生成
+    // 手の領域のみのプレビュー画像を生成
     if (this.handPreviewCanvasContext && this.handPreviewCanvasElement) {
       const HAND_PREVIEW_ZOOM = 3;
       const handPreviewBaseY = this.handPreviewCanvasElement.height / 2;
@@ -282,14 +308,59 @@ export class PoseExtractorService {
       }
     }
 
+    // 顔の領域のみのフレーム画像を生成
+    if (this.facePreviewCanvasContext && this.facePreviewCanvasElement) {
+      const FACE_PREVIEW_ZOOM = 1.25;
+      const facePreviewBaseY = this.facePreviewCanvasElement.height / 2;
+
+      if (results.faceLandmarks) {
+        const rect = this.getRectByLandmarks(
+          results.faceLandmarks,
+          results.image.width,
+          results.image.height
+        );
+
+        const rectWidth = rect[2] * FACE_PREVIEW_ZOOM;
+        const rectHeight = rect[3] * FACE_PREVIEW_ZOOM;
+
+        this.facePreviewCanvasElement.width = rectWidth;
+        this.facePreviewCanvasElement.height = rectHeight;
+
+        this.facePreviewCanvasContext.clearRect(0, 0, rectWidth, rectHeight);
+
+        this.facePreviewCanvasContext.drawImage(
+          results.image,
+          rect[0] - 10,
+          rect[1] - 10,
+          rect[2] + 10,
+          rect[3] + 10,
+          0,
+          0,
+          rectWidth,
+          rectHeight
+        );
+      } else {
+        this.facePreviewCanvasContext.clearRect(
+          0,
+          0,
+          this.facePreviewCanvasElement.width,
+          this.facePreviewCanvasElement.height
+        );
+      }
+    }
+
     // イベントを送出
     this.onResultsEventEmitter.emit({
       mpResults: results,
       // 加工されていない画像 (PNG)
-      sourceImageDataUrl: sourceImageDataUrl,
+      frameImageDataUrl: sourceImageDataUrl,
       // 加工された画像 (PNG)
       posePreviewImageDataUrl:
         this.posePreviewCanvasElement.toDataURL('image/png'),
+      // 顔のみの画像 (PNG)
+      faceFrameImageDataUrl: results.faceLandmarks
+        ? this.facePreviewCanvasElement!.toDataURL('image/png')
+        : undefined,
     });
 
     // 完了

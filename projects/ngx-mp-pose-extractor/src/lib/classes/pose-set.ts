@@ -135,6 +135,7 @@ export class PoseSet {
     videoTimeMiliseconds: number,
     frameImageDataUrl: string | undefined,
     poseImageDataUrl: string | undefined,
+    faceFrameImageDataUrl: string | undefined,
     videoWidth: number,
     videoHeight: number,
     videoDuration: number,
@@ -228,6 +229,7 @@ export class PoseSet {
       handVectors: handVector,
       frameImageDataUrl: frameImageDataUrl,
       poseImageDataUrl: poseImageDataUrl,
+      faceFrameImageDataUrl: faceFrameImageDataUrl,
     };
 
     if (1 <= this.poses.length) {
@@ -401,6 +403,26 @@ export class PoseSet {
         continue;
       }
       pose.poseImageDataUrl = newDataUrl;
+
+      if (pose.faceFrameImageDataUrl) {
+        // 画像を整形 - 顔フレーム画像
+        imageTrimmer = new ImageTrimmer();
+        await imageTrimmer.loadByDataUrl(pose.faceFrameImageDataUrl);
+
+        newDataUrl = await imageTrimmer.getDataUrl(
+          this.IMAGE_MIME,
+          this.IMAGE_MIME === 'image/jpeg' || this.IMAGE_MIME === 'image/webp'
+            ? this.IMAGE_QUALITY
+            : undefined
+        );
+        if (!newDataUrl) {
+          console.warn(
+            `[PoseSet] finalize - Could not get the new dataurl for face frame image`
+          );
+          continue;
+        }
+        pose.faceFrameImageDataUrl = newDataUrl;
+      }
     }
 
     this.isFinalized = true;
@@ -737,12 +759,6 @@ export class PoseSet {
     threshold = 0.9
   ): boolean {
     const similarity = PoseSet.getHandSimilarity(handVectorA, handVectorB);
-    /*console.log(
-      `[PoseSet] isSimilarHandPose`,
-      similarity,
-      threshold,
-      similarity >= threshold
-    );*/
     if (similarity === -1) {
       return false;
     }
@@ -925,6 +941,22 @@ export class PoseSet {
         } catch (error) {
           console.warn(
             `[PoseExporterService] push - Could not push frame image`,
+            error
+          );
+          throw error;
+        }
+      }
+      if (pose.faceFrameImageDataUrl) {
+        try {
+          const index =
+            pose.faceFrameImageDataUrl.indexOf('base64,') + 'base64,'.length;
+          const base64 = pose.faceFrameImageDataUrl.substring(index);
+          jsZip.file(`face-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+            base64: true,
+          });
+        } catch (error) {
+          console.warn(
+            `[PoseExporterService] push - Could not push face frame image`,
             error
           );
           throw error;

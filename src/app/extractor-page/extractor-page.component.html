@@ -52,8 +52,11 @@
             "
           >
             {{
-              (this.numOfSourceVideoFrames - sourceVideoFrames.length) /
-                this.numOfSourceVideoFrames
+              mathFloor(
+                ((this.numOfSourceVideoFrames - sourceVideoFrames.length) /
+                  this.numOfSourceVideoFrames) *
+                  100
+              )
             }}%
           </ng-container>
           <!---->
@@ -154,10 +157,18 @@
           muted
         ></video>
       </div>
+      <div class="preview-video-container" *ngIf="facePreviewMediaStream">
+        <p class="label">顔の検出結果</p>
+        <video
+          class="preview-video"
+          [srcObject]="facePreviewMediaStream"
+          autoplay
+          muted
+        ></video>
+      </div>
       <div class="preview-video-container" *ngIf="handPreviewMediaStream">
         <p class="label">手の検出結果</p>
         <video
-          #handPreviewVideo
           class="preview-video"
           [srcObject]="handPreviewMediaStream"
           autoplay

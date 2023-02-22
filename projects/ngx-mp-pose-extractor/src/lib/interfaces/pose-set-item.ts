@@ -11,4 +11,5 @@ export interface PoseSetItem {
   handVectors?: HandVector;
   frameImageDataUrl?: string;
   poseImageDataUrl?: string;
+  faceFrameImageDataUrl?: string;
 }

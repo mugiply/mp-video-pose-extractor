@@ -13,6 +13,7 @@ import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/serv
 import {
   PoseSet,
   PoseExtractorService,
+  OnResultsEvent,
 } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { Subscription } from 'rxjs';
 
@@ -33,6 +34,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
   public posePreviewMediaStream?: MediaStream;
   public handPreviewMediaStream?: MediaStream;
+  public facePreviewMediaStream?: MediaStream;
 
   public state: 'initial' | 'loading' | 'processing' | 'completed' = 'initial';
 
@@ -86,16 +88,8 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.onResultsEventEmitterSubscription =
       this.poseExtractorService.onResultsEventEmitter.subscribe(
-        (results: {
-          mpResults: Results;
-          sourceImageDataUrl: string;
-          posePreviewImageDataUrl: string;
-        }) => {
-          this.onPoseDetected(
-            results.mpResults,
-            results.sourceImageDataUrl,
-            results.posePreviewImageDataUrl
-          );
+        (results: OnResultsEvent) => {
+          this.onPoseDetected(results);
         }
       );
   }
@@ -250,6 +244,10 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     this.handPreviewMediaStream =
       this.poseExtractorService.getHandPreviewMediaStream();
 
+    // 検出された顔をプレビューするためのストリームを生成
+    this.facePreviewMediaStream =
+      this.poseExtractorService.getFacePreviewMediaStream();
+
     // ポーズ検出を開始
     await this.detectPoseOfNextVideoFrame();
   }
@@ -299,15 +297,8 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
   /**
    * ポーズを検出したときの処理
-   * @param results 検出結果
-   * @param sourceImageDataUrl ソース動画のフレーム画像 (DataURL)
-   * @param posePreviewImageDataUrl ポーズのプレビュー画像 (DataURL)
    */
-  async onPoseDetected(
-    results: Results,
-    sourceImageDataUrl: string,
-    posePreviewImageDataUrl: string
-  ) {
+  async onPoseDetected(results: OnResultsEvent) {
     if (!this.poseSet || !this.currentSourceVideoFrame) return;
 
     const frame = this.currentSourceVideoFrame;
@@ -318,12 +309,13 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
 
     this.poseSet.pushPose(
       sourceVideoTimeMiliseconds,
-      sourceImageDataUrl,
-      posePreviewImageDataUrl,
+      results.frameImageDataUrl,
+      results.posePreviewImageDataUrl,
+      results.faceFrameImageDataUrl,
       frame.width,
       frame.height,
       sourceVideoDurationMiliseconds,
-      results
+      results.mpResults
     );
 
     await this.detectPoseOfNextVideoFrame();
