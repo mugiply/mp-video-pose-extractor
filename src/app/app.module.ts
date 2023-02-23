@@ -10,6 +10,7 @@ import { TesterPageComponent } from './tester-page/tester-page.component';
 import { TesterComponent } from './tester-page/tester.component';
 import { NgxMpPoseExtractorModule } from 'ngx-mp-pose-extractor';
 import { FormsModule } from '@angular/forms';
+import { ExtendedClassifierComponent } from './extractor-page/widgets/extended-classifier/extended-classifier.component';
 
 @NgModule({
   declarations: [
@@ -17,6 +18,7 @@ import { FormsModule } from '@angular/forms';
     ExtractorPageComponent,
     TesterPageComponent,
     TesterComponent,
+    ExtendedClassifierComponent,
   ],
   imports: [
     BrowserModule,

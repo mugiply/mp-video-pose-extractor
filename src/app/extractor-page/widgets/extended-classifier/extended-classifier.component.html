@@ -1,0 +1,46 @@
+<ng-container
+  *ngFor="
+    let classifierDefinition of this.extendedClassifierDefinitions;
+    let i = index
+  "
+>
+  <p>
+    <mat-form-field style="width: 40%; min-width: 150px">
+      <mat-label>分類器名</mat-label>
+      <input
+        matInput
+        [(ngModel)]="classifierDefinition.name"
+        placeholder="fooBar"
+        (ngModelChange)="this.save()"
+      />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>モデルのURL (model.json のディレクトリ)</mat-label>
+      <input
+        matInput
+        [(ngModel)]="classifierDefinition.url"
+        placeholder="https://***/"
+        (ngModelChange)="this.save()"
+      />
+    </mat-form-field>
+    <button
+      mat-icon-button
+      style="float: right"
+      color="warn"
+      matTooltip="分類器を削除"
+      (click)="this.deleteClassifier(i)"
+    >
+      <mat-icon>remove_circle</mat-icon>
+    </button>
+  </p>
+</ng-container>
+
+<button
+  mat-icon-button
+  style="float: right"
+  matTooltip="分類器を追加"
+  color="primary"
+  (click)="this.addClassifier()"
+>
+  <mat-icon>add_circle</mat-icon>
+</button>

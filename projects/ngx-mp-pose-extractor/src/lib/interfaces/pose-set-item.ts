@@ -12,4 +12,5 @@ export interface PoseSetItem {
   frameImageDataUrl?: string;
   poseImageDataUrl?: string;
   faceFrameImageDataUrl?: string;
+  extendedData?: { [key: string]: any };
 }

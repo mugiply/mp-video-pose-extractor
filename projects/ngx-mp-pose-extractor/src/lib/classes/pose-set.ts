@@ -136,13 +136,8 @@ export class PoseSet {
     frameImageDataUrl: string | undefined,
     poseImageDataUrl: string | undefined,
     faceFrameImageDataUrl: string | undefined,
-    videoWidth: number,
-    videoHeight: number,
-    videoDuration: number,
     results: Results
-  ) {
-    this.setVideoMetaData(videoWidth, videoHeight, videoDuration);
-
+  ): PoseSetItem | undefined {
     if (results.poseLandmarks === undefined) return;
 
     if (this.poses.length === 0) {
@@ -230,6 +225,7 @@ export class PoseSet {
       frameImageDataUrl: frameImageDataUrl,
       poseImageDataUrl: poseImageDataUrl,
       faceFrameImageDataUrl: faceFrameImageDataUrl,
+      extendedData: {},
     };
 
     if (1 <= this.poses.length) {
@@ -240,14 +236,16 @@ export class PoseSet {
         lastPose.bodyVectors,
         pose.bodyVectors
       );
-      const isSimilarHandPose =
-        lastPose.handVectors && pose.handVectors
-          ? PoseSet.isSimilarHandPose(
-              lastPose.handVectors,
-              pose.handVectors,
-              0.8
-            )
-          : true;
+
+      let isSimilarHandPose = true;
+      if (lastPose.handVectors && pose.handVectors) {
+        isSimilarHandPose = PoseSet.isSimilarHandPose(
+          lastPose.handVectors,
+          pose.handVectors
+        );
+      } else if (!lastPose.handVectors && pose.handVectors) {
+        isSimilarHandPose = false;
+      }
 
       if (isSimilarBodyPose && isSimilarHandPose) {
         // 身体・手ともに類似ポーズならばスキップ
@@ -262,6 +260,8 @@ export class PoseSet {
     }
 
     this.poses.push(pose);
+
+    return pose;
   }
 
   async finalize() {
@@ -283,6 +283,9 @@ export class PoseSet {
 
     // 重複ポーズを除去
     this.removeDuplicatedPoses();
+
+    // 最初のポーズを除去
+    this.poses.shift();
 
     // 画像のマージンを取得
     console.log(`[PoseSet] finalize - Detecting image margins...`);
@@ -441,7 +444,7 @@ export class PoseSet {
         const isSimilarHandPose =
           poseA.handVectors && poseB.handVectors
             ? PoseSet.isSimilarHandPose(poseA.handVectors, poseB.handVectors)
-            : true;
+            : false;
 
         if (isSimilarBodyPose && isSimilarHandPose) {
           // 身体・手ともに類似ポーズならば
@@ -712,7 +715,7 @@ export class PoseSet {
   static isSimilarBodyPose(
     bodyVectorA: BodyVector,
     bodyVectorB: BodyVector,
-    threshold = 0.9
+    threshold = 0.8
   ): boolean {
     let isSimilar = false;
     const similarity = PoseSet.getBodyPoseSimilarity(bodyVectorA, bodyVectorB);
@@ -756,11 +759,11 @@ export class PoseSet {
   static isSimilarHandPose(
     handVectorA: HandVector,
     handVectorB: HandVector,
-    threshold = 0.9
+    threshold = 0.7
   ): boolean {
     const similarity = PoseSet.getHandSimilarity(handVectorA, handVectorB);
     if (similarity === -1) {
-      return false;
+      return true;
     }
     return similarity >= threshold;
   }
@@ -1023,6 +1026,7 @@ export class PoseSet {
           r: pose.rightHand,
           v: bodyVector,
           h: handVector,
+          e: pose.extendedData,
         };
       }),
       poseLandmarkMapppings: poseLandmarkMappings,
@@ -1063,6 +1067,7 @@ export class PoseSet {
         bodyVectors: bodyVector,
         handVectors: handVector,
         frameImageDataUrl: undefined,
+        extendedData: item.e,
       };
     });
   }

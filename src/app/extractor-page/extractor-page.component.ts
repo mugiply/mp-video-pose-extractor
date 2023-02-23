@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   ElementRef,
   NgZone,
@@ -8,7 +9,6 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { Results } from '@mediapipe/holistic';
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import {
   PoseSet,
@@ -16,9 +16,11 @@ import {
   OnResultsEvent,
 } from 'projects/ngx-mp-pose-extractor/src/public-api';
 import { Subscription } from 'rxjs';
+import { ExtendedClassifier } from './interfaces/extended-classifier';
 
 // @ts-ignore
 import { MP4Demuxer } from './mp4-decorder/demuxer_mp4.mjs';
+import { ExtendedClassifierService } from './services/extended-classifier.service';
 
 @Component({
   selector: 'app-extractor-page',
@@ -77,12 +79,17 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   // ポーズ検出の結果を取得するためのサブスクリプション
   private onResultsEventEmitterSubscription!: Subscription;
 
+  // 追加の分類器の設定
+  extendedClassifierDefinitions: ExtendedClassifier[] = [];
+
   constructor(
     public poseComposerService: PoseComposerService,
     private poseExtractorService: PoseExtractorService,
+    private extendedClassifierService: ExtendedClassifierService,
     private domSanitizer: DomSanitizer,
     private snackBar: MatSnackBar,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -92,6 +99,10 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
           this.onPoseDetected(results);
         }
       );
+
+    // 子コンポーネントにより値が変更されるのを検知
+    // (ExtendedClassifierComponetn からの値の変更)
+    this.changeDetectorRef.detectChanges();
   }
 
   ngOnDestroy(): void {
@@ -110,11 +121,26 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     const videoFile = files[0];
     const videoFileUrl = URL.createObjectURL(videoFile);
 
+    // 初期化
     this.sourceVideoFileName = videoFile.name;
     const videoName = videoFile.name.split('.').slice(0, -1).join('.');
-
     this.state = 'loading';
     this.poseSet = this.poseComposerService.init(videoName);
+
+    // 追加の分類器を初期化
+    try {
+      await this.extendedClassifierService.init(
+        this.extendedClassifierDefinitions
+      );
+    } catch (e: any) {
+      this.snackBar.open(
+        'エラー: 分類器の初期化に失敗...' + e.message,
+        undefined,
+        {
+          duration: 3000,
+        }
+      );
+    }
 
     // 動画のデコードを開始
     this.sourceFrameCanvas = document.createElement('canvas');
@@ -216,11 +242,18 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
    * ソース動画の全てのフレームから抽出完了したときの処理
    */
   async onVideoAllFramesLoaded() {
-    if (!this.sourceVideoFrames) {
+    if (!this.sourceVideoFrames || !this.poseSet) {
       return;
     }
 
     this.numOfSourceVideoFrames = this.sourceVideoFrames.length;
+
+    if (this.numOfSourceVideoFrames <= 1) {
+      this.snackBar.open('エラー: 動画のフレーム数が少なすぎます');
+      this.state = 'initial';
+      this.poseSet = undefined;
+      return;
+    }
 
     const message = this.snackBar.open(
       this.numOfSourceVideoFrames +
@@ -235,6 +268,13 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     if (!this.sourceVideoStream && this.sourceFrameCanvas) {
       this.sourceVideoStream = this.sourceFrameCanvas.captureStream(30);
     }
+
+    // 動画のメタデータを設定
+    this.poseSet.setVideoMetaData(
+      this.sourceVideoFrames[0].width,
+      this.sourceVideoFrames[0].height,
+      this.sourceVideoFrames[this.sourceVideoFrames.length - 1].timestamp
+    );
 
     // 検出されたポーズをプレビューするためのストリームを生成
     this.posePreviewMediaStream =
@@ -296,28 +336,32 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * ポーズを検出したときの処理
+   * フレームからポーズを検出したときの処理
    */
   async onPoseDetected(results: OnResultsEvent) {
     if (!this.poseSet || !this.currentSourceVideoFrame) return;
 
+    // フレームを取得
     const frame = this.currentSourceVideoFrame;
 
+    // フレームの時間を取得
     const sourceVideoTimeMiliseconds = Math.floor(frame.timestamp);
 
-    const sourceVideoDurationMiliseconds = 0;
-
-    this.poseSet.pushPose(
+    // ポーズを追加
+    const pose = this.poseSet.pushPose(
       sourceVideoTimeMiliseconds,
       results.frameImageDataUrl,
       results.posePreviewImageDataUrl,
       results.faceFrameImageDataUrl,
-      frame.width,
-      frame.height,
-      sourceVideoDurationMiliseconds,
       results.mpResults
     );
 
+    // 追加の分類を実行
+    if (pose) {
+      pose.extendedData = await this.extendedClassifierService.classify(pose);
+    }
+
+    // 次のフレームのポーズ検出へ
     await this.detectPoseOfNextVideoFrame();
   }
 

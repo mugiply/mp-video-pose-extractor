@@ -2,7 +2,7 @@
   <!-- ソース動画領域 -->
   <mat-card>
     <mat-card-header>
-      <mat-card-title> ソース動画 </mat-card-title>
+      <mat-card-title> ポーズ抽出 </mat-card-title>
       <mat-card-subtitle
         >ポーズを抽出したい動画ファイルを選択してください<br />
         この処理はローカルで行われ、サーバには送信されません</mat-card-subtitle
@@ -25,25 +25,30 @@
         (change)="onChooseSourceVideoFile($event)"
         accept=".mp4"
       />
+      &nbsp;
       <small *ngIf="sourceVideoFileName !== undefined">
         &nbsp;&nbsp;
         {{ sourceVideoFileName }}
       </small>
+      <br />
+      <app-extended-classifier
+        [(extendedClassifierDefinitions)]="extendedClassifierDefinitions"
+      ></app-extended-classifier>
     </mat-card-content>
   </mat-card>
   <!---->
 
   <mat-card>
-    <!-- 検出結果領域 -->
+    <!-- 抽出結果領域 -->
     <mat-card-header>
       <mat-card-title>
-        <!-- 検出状態 -->
+        <!-- 抽出状態 -->
         <ng-container *ngIf="state === 'initial' || state === 'completed'">
-          検出結果
+          抽出結果
         </ng-container>
 
         <ng-container *ngIf="state === 'processing'">
-          検出中...
+          抽出中...
 
           <!-- 進捗 -->
           <ng-container
@@ -63,7 +68,7 @@
         </ng-container>
 
         <ng-container *ngIf="state === 'loading'">
-          読み込み中...
+          デコード中...
 
           <!-- 進捗 -->
           <ng-container
@@ -129,7 +134,9 @@
   <!-- プレビュー領域 -->
   <mat-card
     class="preview"
-    [style.visibility]="state === 'initial' ? 'hidden' : 'visible'"
+    [style.visibility]="
+      state === 'initial' || state === 'loading' ? 'hidden' : 'visible'
+    "
   >
     <mat-card-header>
       <mat-card-title> プレビュー </mat-card-title>
@@ -200,6 +207,7 @@
       <div
         class="preview-video-container"
         *ngFor="let poseSetItem of poseSet?.getPoses()?.slice()"
+        matTooltip="{{ poseSetItem.extendedData | json }}"
       >
         <p class="label">{{ poseSetItem.timeMiliseconds }}</p>
         <img
