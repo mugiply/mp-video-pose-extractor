@@ -759,7 +759,7 @@ export class PoseSet {
   static isSimilarHandPose(
     handVectorA: HandVector,
     handVectorB: HandVector,
-    threshold = 0.7
+    threshold = 0.75
   ): boolean {
     const similarity = PoseSet.getHandSimilarity(handVectorA, handVectorB);
     if (similarity === -1) {
