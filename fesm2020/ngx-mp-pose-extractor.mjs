@@ -785,7 +785,7 @@ class PoseSet {
         const cosSimilaritiesSum = Object.values(cosSimilarities).reduce((sum, value) => sum + value, 0);
         return cosSimilaritiesSum / Object.keys(cosSimilarities).length;
     }
-    static isSimilarHandPose(handVectorA, handVectorB, threshold = 0.7) {
+    static isSimilarHandPose(handVectorA, handVectorB, threshold = 0.75) {
         const similarity = PoseSet.getHandSimilarity(handVectorA, handVectorB);
         if (similarity === -1) {
             return true;
