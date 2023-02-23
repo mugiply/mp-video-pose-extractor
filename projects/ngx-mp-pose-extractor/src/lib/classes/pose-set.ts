@@ -7,7 +7,7 @@ import { BodyVector } from '../interfaces/body-vector';
 
 // @ts-ignore
 import cosSimilarity from 'cos-similarity';
-import { SimilarPoseItem } from '../interfaces/matched-pose-item';
+import { SimilarPoseItem } from '../interfaces/similar-pose-item';
 import { ImageTrimmer } from './internals/image-trimmer';
 import { HandVector } from '../interfaces/hand-vector';
 

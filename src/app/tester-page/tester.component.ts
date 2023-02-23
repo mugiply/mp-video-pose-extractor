@@ -14,7 +14,7 @@ import { PoseExtractorService } from 'projects/ngx-mp-pose-extractor/src/public-
 import { PoseComposerService } from 'projects/ngx-mp-pose-extractor/src/lib/services/pose-composer.service';
 import { Subscription } from 'rxjs';
 import { PoseSet } from 'projects/ngx-mp-pose-extractor/src/public-api';
-import { SimilarPoseItem } from 'projects/ngx-mp-pose-extractor/src/lib/interfaces/matched-pose-item';
+import { SimilarPoseItem } from 'projects/ngx-mp-pose-extractor/src/lib/interfaces/similar-pose-item';
 
 @Component({
   selector: 'app-tester',
