@@ -1,7 +1,7 @@
 import { Results } from '@mediapipe/holistic';
 import { PoseSetItem } from '../interfaces/pose-set-item';
 import { BodyVector } from '../interfaces/body-vector';
-import { SimilarPoseItem } from '../interfaces/matched-pose-item';
+import { SimilarPoseItem } from '../interfaces/similar-pose-item';
 import { HandVector } from '../interfaces/hand-vector';
 export declare class PoseSet {
     generator?: string;
@@ -26,7 +26,7 @@ export declare class PoseSet {
     getNumberOfPoses(): number;
     getPoses(): PoseSetItem[];
     getPoseByTime(timeMiliseconds: number): PoseSetItem | undefined;
-    pushPose(videoTimeMiliseconds: number, frameImageDataUrl: string | undefined, poseImageDataUrl: string | undefined, videoWidth: number, videoHeight: number, videoDuration: number, results: Results): void;
+    pushPose(videoTimeMiliseconds: number, frameImageDataUrl: string | undefined, poseImageDataUrl: string | undefined, faceFrameImageDataUrl: string | undefined, results: Results): PoseSetItem | undefined;
     finalize(): Promise<void>;
     removeDuplicatedPoses(): void;
     getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];

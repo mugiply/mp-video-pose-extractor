@@ -5,5 +5,8 @@ export interface PoseSetJsonItem {
     l?: number[][];
     r?: number[][];
     v: number[][];
-    h?: number[][];
+    h?: (number[] | null)[];
+    e?: {
+        [key: string]: any;
+    };
 }
