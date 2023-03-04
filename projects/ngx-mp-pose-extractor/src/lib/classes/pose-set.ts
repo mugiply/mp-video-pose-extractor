@@ -66,15 +66,6 @@ export class PoseSet {
     // 左手 - 小指
     'leftPinkyFingerTipToFirstJoint',
     'leftPinkyFingerFirstJointToSecondJoint',
-    // 右足
-    'rightAnkleToRightKnee',
-    'rightKneeToRightHip',
-    // 左足
-    'leftAnkleToLeftKnee',
-    'leftKneeToLeftHip',
-    // 胴体
-    'rightHipToLeftHip',
-    'rightShoulderToLeftShoulder',
   ];
 
   // 画像書き出し時の設定
