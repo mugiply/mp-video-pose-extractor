@@ -466,23 +466,86 @@ export class PoseSet {
 
   getSimilarPoses(
     results: Results,
-    threshold: number = 0.9
+    threshold: number = 0.9,
+    targetRange: 'all' | 'bodyPose' | 'handPose' = 'all'
   ): SimilarPoseItem[] {
-    const bodyVector = PoseSet.getBodyVector((results as any).ea);
-    if (!bodyVector) throw 'Could not get the body vector';
+    // 身体のベクトルを取得
+    let bodyVector: BodyVector = PoseSet.getBodyVector((results as any).ea);
+    if (!bodyVector) {
+      throw 'Could not get the body vector';
+    }
 
+    // 手指のベクトルを取得
+    let handVector: HandVector;
+    if (targetRange === 'all' || targetRange === 'handPose') {
+      handVector = PoseSet.getHandVectors(
+        results.leftHandLandmarks,
+        results.rightHandLandmarks
+      );
+      if (targetRange === 'handPose' && !handVector) {
+        throw 'Could not get the hand vector';
+      }
+    }
+
+    // 各ポーズとベクトルを比較
     const poses = [];
     for (const pose of this.poses) {
-      const similarity = PoseSet.getBodyPoseSimilarity(
-        pose.bodyVectors,
-        bodyVector
-      );
-      if (threshold <= similarity) {
-        poses.push({
-          ...pose,
-          similarity: similarity,
-        });
+      if (
+        (targetRange === 'all' || targetRange === 'bodyPose') &&
+        !pose.bodyVectors
+      ) {
+        continue;
+      } else if (targetRange === 'handPose' && !pose.handVectors) {
+        continue;
       }
+
+      // 身体のポーズの類似度を取得
+      let bodySimilarity: number;
+      if (bodyVector && pose.bodyVectors) {
+        bodySimilarity = PoseSet.getBodyPoseSimilarity(
+          pose.bodyVectors,
+          bodyVector
+        );
+      }
+
+      // 手指のポーズの類似度を取得
+      let handSimilarity: number;
+      if (handVector && pose.handVectors) {
+        handSimilarity = PoseSet.getHandSimilarity(
+          pose.handVectors,
+          handVector
+        );
+      }
+
+      // 判定
+      let similarity: number,
+        isSimilar = false;
+      if (targetRange === 'all') {
+        similarity = Math.max(bodySimilarity ?? 0, handSimilarity ?? 0);
+        if (threshold <= bodySimilarity || threshold <= handSimilarity) {
+          isSimilar = true;
+        }
+      } else if (targetRange === 'bodyPose') {
+        similarity = bodySimilarity;
+        if (threshold <= bodySimilarity) {
+          isSimilar = true;
+        }
+      } else if (targetRange === 'handPose') {
+        similarity = handSimilarity;
+        if (threshold <= handSimilarity) {
+          isSimilar = true;
+        }
+      }
+
+      if (!isSimilar) continue;
+
+      // 結果へ追加
+      poses.push({
+        ...pose,
+        similarity: similarity,
+        bodyPoseSimilarity: bodySimilarity,
+        handPoseSimilarity: handSimilarity,
+      } as SimilarPoseItem);
     }
 
     return poses;
