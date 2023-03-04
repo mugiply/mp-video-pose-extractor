@@ -401,7 +401,7 @@ class PoseSet {
         else if (results.rightHandLandmarks === undefined) {
             console.warn(`[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the right hand landmarks`, results);
         }
-        const handVector = PoseSet.getHandVectors(results.leftHandLandmarks, results.rightHandLandmarks);
+        const handVector = PoseSet.gethandVector(results.leftHandLandmarks, results.rightHandLandmarks);
         if (!handVector) {
             console.warn(`[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand vector`, results);
         }
@@ -430,8 +430,8 @@ class PoseSet {
                     normalizedLandmark.z,
                 ];
             }),
-            bodyVectors: bodyVector,
-            handVectors: handVector,
+            bodyVector: bodyVector,
+            handVector: handVector,
             frameImageDataUrl: frameImageDataUrl,
             poseImageDataUrl: poseImageDataUrl,
             faceFrameImageDataUrl: faceFrameImageDataUrl,
@@ -440,12 +440,12 @@ class PoseSet {
         if (1 <= this.poses.length) {
             // 前回のポーズとの類似性をチェック
             const lastPose = this.poses[this.poses.length - 1];
-            const isSimilarBodyPose = PoseSet.isSimilarBodyPose(lastPose.bodyVectors, pose.bodyVectors);
+            const isSimilarBodyPose = PoseSet.isSimilarBodyPose(lastPose.bodyVector, pose.bodyVector);
             let isSimilarHandPose = true;
-            if (lastPose.handVectors && pose.handVectors) {
-                isSimilarHandPose = PoseSet.isSimilarHandPose(lastPose.handVectors, pose.handVectors);
+            if (lastPose.handVector && pose.handVector) {
+                isSimilarHandPose = PoseSet.isSimilarHandPose(lastPose.handVector, pose.handVector);
             }
-            else if (!lastPose.handVectors && pose.handVectors) {
+            else if (!lastPose.handVector && pose.handVector) {
                 isSimilarHandPose = false;
             }
             if (isSimilarBodyPose && isSimilarHandPose) {
@@ -566,9 +566,9 @@ class PoseSet {
         for (const poseA of this.poses) {
             let isDuplicated = false;
             for (const poseB of newPoses) {
-                const isSimilarBodyPose = PoseSet.isSimilarBodyPose(poseA.bodyVectors, poseB.bodyVectors);
-                const isSimilarHandPose = poseA.handVectors && poseB.handVectors
-                    ? PoseSet.isSimilarHandPose(poseA.handVectors, poseB.handVectors)
+                const isSimilarBodyPose = PoseSet.isSimilarBodyPose(poseA.bodyVector, poseB.bodyVector);
+                const isSimilarHandPose = poseA.handVector && poseB.handVector
+                    ? PoseSet.isSimilarHandPose(poseA.handVector, poseB.handVector)
                     : false;
                 if (isSimilarBodyPose && isSimilarHandPose) {
                     // 身体・手ともに類似ポーズならば
@@ -592,7 +592,7 @@ class PoseSet {
         // 手指のベクトルを取得
         let handVector;
         if (targetRange === 'all' || targetRange === 'handPose') {
-            handVector = PoseSet.getHandVectors(results.leftHandLandmarks, results.rightHandLandmarks);
+            handVector = PoseSet.gethandVector(results.leftHandLandmarks, results.rightHandLandmarks);
             if (targetRange === 'handPose' && !handVector) {
                 throw 'Could not get the hand vector';
             }
@@ -601,21 +601,21 @@ class PoseSet {
         const poses = [];
         for (const pose of this.poses) {
             if ((targetRange === 'all' || targetRange === 'bodyPose') &&
-                !pose.bodyVectors) {
+                !pose.bodyVector) {
                 continue;
             }
-            else if (targetRange === 'handPose' && !pose.handVectors) {
+            else if (targetRange === 'handPose' && !pose.handVector) {
                 continue;
             }
             // 身体のポーズの類似度を取得
             let bodySimilarity;
-            if (bodyVector && pose.bodyVectors) {
-                bodySimilarity = PoseSet.getBodyPoseSimilarity(pose.bodyVectors, bodyVector);
+            if (bodyVector && pose.bodyVector) {
+                bodySimilarity = PoseSet.getBodyPoseSimilarity(pose.bodyVector, bodyVector);
             }
             // 手指のポーズの類似度を取得
             let handSimilarity;
-            if (handVector && pose.handVectors) {
-                handSimilarity = PoseSet.getHandSimilarity(pose.handVectors, handVector);
+            if (handVector && pose.handVector) {
+                handSimilarity = PoseSet.getHandSimilarity(pose.handVector, handVector);
             }
             // 判定
             let similarity, isSimilar = false;
@@ -680,7 +680,7 @@ class PoseSet {
             ],
         };
     }
-    static getHandVectors(leftHandLandmarks, rightHandLandmarks) {
+    static gethandVector(leftHandLandmarks, rightHandLandmarks) {
         if ((rightHandLandmarks === undefined || rightHandLandmarks.length === 0) &&
             (leftHandLandmarks === undefined || leftHandLandmarks.length === 0)) {
             return undefined;
@@ -1010,14 +1010,14 @@ class PoseSet {
                     // BodyVector の圧縮
                     const bodyVector = [];
                     for (const key of PoseSet.BODY_VECTOR_MAPPINGS) {
-                        bodyVector.push(pose.bodyVectors[key]);
+                        bodyVector.push(pose.bodyVector[key]);
                     }
                     // HandVector の圧縮
                     let handVector = undefined;
-                    if (pose.handVectors) {
+                    if (pose.handVector) {
                         handVector = [];
                         for (const key of PoseSet.HAND_VECTOR_MAPPINGS) {
-                            handVector.push(pose.handVectors[key]);
+                            handVector.push(pose.handVector[key]);
                         }
                     }
                     // PoseSetJsonItem の pose オブジェクトを生成
@@ -1063,8 +1063,8 @@ class PoseSet {
                 pose: item.p,
                 leftHand: item.l,
                 rightHand: item.r,
-                bodyVectors: bodyVector,
-                handVectors: handVector,
+                bodyVector: bodyVector,
+                handVector: handVector,
                 frameImageDataUrl: undefined,
                 extendedData: item.e,
             };
@@ -1149,15 +1149,6 @@ PoseSet.HAND_VECTOR_MAPPINGS = [
     // 左手 - 小指
     'leftPinkyFingerTipToFirstJoint',
     'leftPinkyFingerFirstJointToSecondJoint',
-    // 右足
-    'rightAnkleToRightKnee',
-    'rightKneeToRightHip',
-    // 左足
-    'leftAnkleToLeftKnee',
-    'leftKneeToLeftHip',
-    // 胴体
-    'rightHipToLeftHip',
-    'rightShoulderToLeftShoulder',
 ];
 
 /**

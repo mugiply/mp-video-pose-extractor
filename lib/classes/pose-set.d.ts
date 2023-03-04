@@ -35,7 +35,7 @@ export declare class PoseSet {
         y: number;
         z: number;
     }[]): BodyVector | undefined;
-    static getHandVectors(leftHandLandmarks: {
+    static gethandVector(leftHandLandmarks: {
         x: number;
         y: number;
         z: number;
