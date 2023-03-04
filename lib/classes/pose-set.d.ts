@@ -29,7 +29,7 @@ export declare class PoseSet {
     pushPose(videoTimeMiliseconds: number, frameImageDataUrl: string | undefined, poseImageDataUrl: string | undefined, faceFrameImageDataUrl: string | undefined, results: Results): PoseSetItem | undefined;
     finalize(): Promise<void>;
     removeDuplicatedPoses(): void;
-    getSimilarPoses(results: Results, threshold?: number): SimilarPoseItem[];
+    getSimilarPoses(results: Results, threshold?: number, targetRange?: 'all' | 'bodyPose' | 'handPose'): SimilarPoseItem[];
     static getBodyVector(poseLandmarks: {
         x: number;
         y: number;
