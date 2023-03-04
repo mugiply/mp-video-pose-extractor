@@ -401,7 +401,7 @@ class PoseSet {
         else if (results.rightHandLandmarks === undefined) {
             console.warn(`[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the right hand landmarks`, results);
         }
-        const handVector = PoseSet.gethandVector(results.leftHandLandmarks, results.rightHandLandmarks);
+        const handVector = PoseSet.getHandVector(results.leftHandLandmarks, results.rightHandLandmarks);
         if (!handVector) {
             console.warn(`[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand vector`, results);
         }
@@ -423,7 +423,7 @@ class PoseSet {
                     normalizedLandmark.z,
                 ];
             }),
-            rightHand: (_b = results.leftHandLandmarks) === null || _b === void 0 ? void 0 : _b.map((normalizedLandmark) => {
+            rightHand: (_b = results.rightHandLandmarks) === null || _b === void 0 ? void 0 : _b.map((normalizedLandmark) => {
                 return [
                     normalizedLandmark.x,
                     normalizedLandmark.y,
@@ -592,7 +592,7 @@ class PoseSet {
         // 手指のベクトルを取得
         let handVector;
         if (targetRange === 'all' || targetRange === 'handPose') {
-            handVector = PoseSet.gethandVector(results.leftHandLandmarks, results.rightHandLandmarks);
+            handVector = PoseSet.getHandVector(results.leftHandLandmarks, results.rightHandLandmarks);
             if (targetRange === 'handPose' && !handVector) {
                 throw 'Could not get the hand vector';
             }
@@ -680,7 +680,7 @@ class PoseSet {
             ],
         };
     }
-    static gethandVector(leftHandLandmarks, rightHandLandmarks) {
+    static getHandVector(leftHandLandmarks, rightHandLandmarks) {
         if ((rightHandLandmarks === undefined || rightHandLandmarks.length === 0) &&
             (leftHandLandmarks === undefined || leftHandLandmarks.length === 0)) {
             return undefined;
