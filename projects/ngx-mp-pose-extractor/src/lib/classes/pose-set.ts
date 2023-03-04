@@ -175,7 +175,7 @@ export class PoseSet {
       );
     }
 
-    const handVector = PoseSet.gethandVector(
+    const handVector = PoseSet.getHandVector(
       results.leftHandLandmarks,
       results.rightHandLandmarks
     );
@@ -204,7 +204,7 @@ export class PoseSet {
           normalizedLandmark.z,
         ];
       }),
-      rightHand: results.leftHandLandmarks?.map((normalizedLandmark) => {
+      rightHand: results.rightHandLandmarks?.map((normalizedLandmark) => {
         return [
           normalizedLandmark.x,
           normalizedLandmark.y,
@@ -469,7 +469,7 @@ export class PoseSet {
     // 手指のベクトルを取得
     let handVector: HandVector;
     if (targetRange === 'all' || targetRange === 'handPose') {
-      handVector = PoseSet.gethandVector(
+      handVector = PoseSet.getHandVector(
         results.leftHandLandmarks,
         results.rightHandLandmarks
       );
@@ -578,7 +578,7 @@ export class PoseSet {
     };
   }
 
-  static gethandVector(
+  static getHandVector(
     leftHandLandmarks: { x: number; y: number; z: number }[],
     rightHandLandmarks: { x: number; y: number; z: number }[]
   ): HandVector | undefined {
