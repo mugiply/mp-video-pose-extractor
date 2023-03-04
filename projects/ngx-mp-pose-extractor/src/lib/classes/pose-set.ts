@@ -175,7 +175,7 @@ export class PoseSet {
       );
     }
 
-    const handVector = PoseSet.getHandVectors(
+    const handVector = PoseSet.gethandVector(
       results.leftHandLandmarks,
       results.rightHandLandmarks
     );
@@ -211,8 +211,8 @@ export class PoseSet {
           normalizedLandmark.z,
         ];
       }),
-      bodyVectors: bodyVector,
-      handVectors: handVector,
+      bodyVector: bodyVector,
+      handVector: handVector,
       frameImageDataUrl: frameImageDataUrl,
       poseImageDataUrl: poseImageDataUrl,
       faceFrameImageDataUrl: faceFrameImageDataUrl,
@@ -224,17 +224,17 @@ export class PoseSet {
       const lastPose = this.poses[this.poses.length - 1];
 
       const isSimilarBodyPose = PoseSet.isSimilarBodyPose(
-        lastPose.bodyVectors,
-        pose.bodyVectors
+        lastPose.bodyVector,
+        pose.bodyVector
       );
 
       let isSimilarHandPose = true;
-      if (lastPose.handVectors && pose.handVectors) {
+      if (lastPose.handVector && pose.handVector) {
         isSimilarHandPose = PoseSet.isSimilarHandPose(
-          lastPose.handVectors,
-          pose.handVectors
+          lastPose.handVector,
+          pose.handVector
         );
-      } else if (!lastPose.handVectors && pose.handVectors) {
+      } else if (!lastPose.handVector && pose.handVector) {
         isSimilarHandPose = false;
       }
 
@@ -429,12 +429,12 @@ export class PoseSet {
       let isDuplicated = false;
       for (const poseB of newPoses) {
         const isSimilarBodyPose = PoseSet.isSimilarBodyPose(
-          poseA.bodyVectors,
-          poseB.bodyVectors
+          poseA.bodyVector,
+          poseB.bodyVector
         );
         const isSimilarHandPose =
-          poseA.handVectors && poseB.handVectors
-            ? PoseSet.isSimilarHandPose(poseA.handVectors, poseB.handVectors)
+          poseA.handVector && poseB.handVector
+            ? PoseSet.isSimilarHandPose(poseA.handVector, poseB.handVector)
             : false;
 
         if (isSimilarBodyPose && isSimilarHandPose) {
@@ -469,7 +469,7 @@ export class PoseSet {
     // 手指のベクトルを取得
     let handVector: HandVector;
     if (targetRange === 'all' || targetRange === 'handPose') {
-      handVector = PoseSet.getHandVectors(
+      handVector = PoseSet.gethandVector(
         results.leftHandLandmarks,
         results.rightHandLandmarks
       );
@@ -483,29 +483,26 @@ export class PoseSet {
     for (const pose of this.poses) {
       if (
         (targetRange === 'all' || targetRange === 'bodyPose') &&
-        !pose.bodyVectors
+        !pose.bodyVector
       ) {
         continue;
-      } else if (targetRange === 'handPose' && !pose.handVectors) {
+      } else if (targetRange === 'handPose' && !pose.handVector) {
         continue;
       }
 
       // 身体のポーズの類似度を取得
       let bodySimilarity: number;
-      if (bodyVector && pose.bodyVectors) {
+      if (bodyVector && pose.bodyVector) {
         bodySimilarity = PoseSet.getBodyPoseSimilarity(
-          pose.bodyVectors,
+          pose.bodyVector,
           bodyVector
         );
       }
 
       // 手指のポーズの類似度を取得
       let handSimilarity: number;
-      if (handVector && pose.handVectors) {
-        handSimilarity = PoseSet.getHandSimilarity(
-          pose.handVectors,
-          handVector
-        );
+      if (handVector && pose.handVector) {
+        handSimilarity = PoseSet.getHandSimilarity(pose.handVector, handVector);
       }
 
       // 判定
@@ -581,7 +578,7 @@ export class PoseSet {
     };
   }
 
-  static getHandVectors(
+  static gethandVector(
     leftHandLandmarks: { x: number; y: number; z: number }[],
     rightHandLandmarks: { x: number; y: number; z: number }[]
   ): HandVector | undefined {
@@ -1059,15 +1056,15 @@ export class PoseSet {
         // BodyVector の圧縮
         const bodyVector = [];
         for (const key of PoseSet.BODY_VECTOR_MAPPINGS) {
-          bodyVector.push(pose.bodyVectors[key as keyof BodyVector]);
+          bodyVector.push(pose.bodyVector[key as keyof BodyVector]);
         }
 
         // HandVector の圧縮
         let handVector: (number[] | null)[] | undefined = undefined;
-        if (pose.handVectors) {
+        if (pose.handVector) {
           handVector = [];
           for (const key of PoseSet.HAND_VECTOR_MAPPINGS) {
-            handVector.push(pose.handVectors[key as keyof HandVector]);
+            handVector.push(pose.handVector[key as keyof HandVector]);
           }
         }
 
@@ -1118,8 +1115,8 @@ export class PoseSet {
         pose: item.p,
         leftHand: item.l,
         rightHand: item.r,
-        bodyVectors: bodyVector,
-        handVectors: handVector,
+        bodyVector: bodyVector,
+        handVector: handVector,
         frameImageDataUrl: undefined,
         extendedData: item.e,
       };

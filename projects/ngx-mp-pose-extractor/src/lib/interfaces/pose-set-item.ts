@@ -7,8 +7,8 @@ export interface PoseSetItem {
   pose?: number[][];
   leftHand?: number[][];
   rightHand?: number[][];
-  bodyVectors: BodyVector;
-  handVectors?: HandVector;
+  bodyVector: BodyVector;
+  handVector?: HandVector;
   frameImageDataUrl?: string;
   poseImageDataUrl?: string;
   faceFrameImageDataUrl?: string;
