@@ -585,7 +585,14 @@ class PoseSet {
     }
     getSimilarPoses(results, threshold = 0.9, targetRange = 'all') {
         // 身体のベクトルを取得
-        let bodyVector = PoseSet.getBodyVector(results.ea);
+        let bodyVector;
+        try {
+            bodyVector = PoseSet.getBodyVector(results.ea);
+        }
+        catch (e) {
+            console.error(`[PoseSet] getSimilarPoses - Error occurred`, e, results);
+            return [];
+        }
         if (!bodyVector) {
             throw 'Could not get the body vector';
         }
@@ -607,6 +614,11 @@ class PoseSet {
             else if (targetRange === 'handPose' && !pose.handVector) {
                 continue;
             }
+            /*console.log(
+              '[PoseSet] getSimilarPoses - ',
+              this.getVideoName(),
+              pose.timeMiliseconds
+            );*/
             // 身体のポーズの類似度を取得
             let bodySimilarity;
             if (bodyVector && pose.bodyVector) {
@@ -904,30 +916,45 @@ class PoseSet {
                 leftPinkyFingerTipToFirstJoint: cosSimilarity(handVectorA.leftPinkyFingerTipToFirstJoint, handVectorB.leftPinkyFingerTipToFirstJoint),
                 leftPinkyFingerFirstJointToSecondJoint: cosSimilarity(handVectorA.leftPinkyFingerFirstJointToSecondJoint, handVectorB.leftPinkyFingerFirstJointToSecondJoint),
             };
+        // 左手の類似度
         let cosSimilaritiesSumLeftHand = 0;
         if (cosSimilaritiesLeftHand) {
             cosSimilaritiesSumLeftHand = Object.values(cosSimilaritiesLeftHand).reduce((sum, value) => sum + value, 0);
         }
+        // 右手の類似度
         let cosSimilaritiesSumRightHand = 0;
         if (cosSimilaritiesRightHand) {
             cosSimilaritiesSumRightHand = Object.values(cosSimilaritiesRightHand).reduce((sum, value) => sum + value, 0);
         }
+        // 合算された類似度
         if (cosSimilaritiesRightHand && cosSimilaritiesLeftHand) {
             return ((cosSimilaritiesSumRightHand + cosSimilaritiesSumLeftHand) /
                 (Object.keys(cosSimilaritiesRightHand).length +
                     Object.keys(cosSimilaritiesLeftHand).length));
         }
-        else if (cosSimilaritiesSumRightHand) {
+        else if (cosSimilaritiesRightHand) {
+            if (handVectorB.leftThumbFirstJointToSecondJoint !== null &&
+                handVectorA.leftThumbFirstJointToSecondJoint === null) {
+                // handVectorB で左手があるのに handVectorA で左手がない場合、類似度を減らす
+                console.log(`[PoseSet] getHandSimilarity - Adjust similarity, because left hand not found...`);
+                return (cosSimilaritiesSumRightHand /
+                    (Object.keys(cosSimilaritiesRightHand).length * 2));
+            }
             return (cosSimilaritiesSumRightHand /
                 Object.keys(cosSimilaritiesRightHand).length);
         }
         else if (cosSimilaritiesLeftHand) {
+            if (handVectorB.rightThumbFirstJointToSecondJoint !== null &&
+                handVectorA.rightThumbFirstJointToSecondJoint === null) {
+                // handVectorB で右手があるのに handVectorA で右手がない場合、類似度を減らす
+                console.log(`[PoseSet] getHandSimilarity - Adjust similarity, because right hand not found...`);
+                return (cosSimilaritiesSumLeftHand /
+                    (Object.keys(cosSimilaritiesLeftHand).length * 2));
+            }
             return (cosSimilaritiesSumLeftHand /
                 Object.keys(cosSimilaritiesLeftHand).length);
         }
-        else {
-            return -1;
-        }
+        return -1;
     }
     getZip() {
         return __awaiter(this, void 0, void 0, function* () {
