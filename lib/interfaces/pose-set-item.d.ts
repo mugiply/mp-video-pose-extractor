@@ -14,4 +14,14 @@ export interface PoseSetItem {
     extendedData?: {
         [key: string]: any;
     };
+    mergedTimeMiliseconds?: number;
+    mergedDurationMiliseconds?: number;
+    debug?: {
+        duplicatedItems: {
+            timeMiliseconds: number;
+            durationMiliseconds: number;
+            bodySimilarity?: number;
+            handSimilarity?: number;
+        }[];
+    };
 }
