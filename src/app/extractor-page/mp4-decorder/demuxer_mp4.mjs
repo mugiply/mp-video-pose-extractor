@@ -96,6 +96,7 @@ export class MP4Demuxer {
       codedHeight: track.video.height,
       codedWidth: track.video.width,
       description: this.#description(track),
+      track: track,
     });
 
     // Start demuxing.

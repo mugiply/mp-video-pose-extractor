@@ -48,7 +48,7 @@
         </ng-container>
 
         <ng-container *ngIf="state === 'processing'">
-          抽出中...
+          ポーズ検出中...
 
           <!-- 進捗 -->
           <ng-container
@@ -78,9 +78,11 @@
           >
             {{
               mathFloor(
-                sourceVideoFrames[sourceVideoFrames.length - 1].timestamp / 1000
+                (sourceVideoFrames[sourceVideoFrames.length - 1].timestamp /
+                  sourceVideoDuration) *
+                  100
               )
-            }}s
+            }}%
           </ng-container>
           <!---->
         </ng-container>
@@ -207,9 +209,14 @@
       <div
         class="preview-video-container"
         *ngFor="let poseSetItem of poseSet?.getPoses()?.slice()"
-        matTooltip="{{ poseSetItem.extendedData | json }}"
+        matTooltip="重複: {{ poseSetItem.debug.duplicatedItems | json }}"
       >
-        <p class="label">{{ poseSetItem.timeMiliseconds }}</p>
+        <p class="label">
+          {{ poseSetItem.timeMiliseconds }}
+          ({{ poseSetItem.durationMiliseconds }}) [{{
+            poseSetItem.debug.duplicatedItems.length
+          }}]
+        </p>
         <img
           class="preview-video"
           [src]="

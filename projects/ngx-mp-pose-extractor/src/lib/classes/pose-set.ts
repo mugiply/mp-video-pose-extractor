@@ -68,6 +68,14 @@ export class PoseSet {
     'leftPinkyFingerFirstJointToSecondJoint',
   ];
 
+  // ポーズを追加するためのキュー
+  private similarPoseQueue: PoseSetItem[] = [];
+
+  // 類似ポーズの除去 - 全ポーズから
+  private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE = false;
+  // 類似ポーズの除去 - 各ポーズの前後から
+  private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND = true;
+
   // 画像書き出し時の設定
   private readonly IMAGE_WIDTH: number = 1080;
   private readonly IMAGE_MIME: 'image/jpeg' | 'image/png' | 'image/webp' =
@@ -107,21 +115,37 @@ export class PoseSet {
     this.videoMetadata.duration = duration;
   }
 
+  /**
+   * ポーズ数の取得
+   * @returns
+   */
   getNumberOfPoses(): number {
     if (this.poses === undefined) return -1;
     return this.poses.length;
   }
 
+  /**
+   * 全ポーズの取得
+   * @returns 全てのポーズ
+   */
   getPoses(): PoseSetItem[] {
     if (this.poses === undefined) return [];
     return this.poses;
   }
 
+  /**
+   * 指定された時間によるポーズの取得
+   * @param timeMiliseconds ポーズの時間 (ミリ秒)
+   * @returns ポーズ
+   */
   getPoseByTime(timeMiliseconds: number): PoseSetItem | undefined {
     if (this.poses === undefined) return undefined;
     return this.poses.find((pose) => pose.timeMiliseconds === timeMiliseconds);
   }
 
+  /**
+   * ポーズの追加
+   */
   pushPose(
     videoTimeMiliseconds: number,
     frameImageDataUrl: string | undefined,
@@ -217,69 +241,174 @@ export class PoseSet {
       poseImageDataUrl: poseImageDataUrl,
       faceFrameImageDataUrl: faceFrameImageDataUrl,
       extendedData: {},
+      debug: {
+        duplicatedItems: [],
+      },
+      mergedTimeMiliseconds: -1,
+      mergedDurationMiliseconds: -1,
     };
 
-    if (1 <= this.poses.length) {
-      // 前回のポーズとの類似性をチェック
-      const lastPose = this.poses[this.poses.length - 1];
+    let lastPose;
+    if (this.poses.length === 0 && 1 <= this.similarPoseQueue.length) {
+      // 類似ポーズキューから最後のポーズを取得
+      lastPose = this.similarPoseQueue[this.similarPoseQueue.length - 1];
+    } else if (1 <= this.poses.length) {
+      // ポーズ配列から最後のポーズを取得
+      lastPose = this.poses[this.poses.length - 1];
+    }
 
+    if (lastPose) {
+      // 最後のポーズがあれば、類似ポーズかどうかを比較
       const isSimilarBodyPose = PoseSet.isSimilarBodyPose(
-        lastPose.bodyVector,
-        pose.bodyVector
+        pose.bodyVector,
+        lastPose.bodyVector
       );
 
       let isSimilarHandPose = true;
       if (lastPose.handVector && pose.handVector) {
         isSimilarHandPose = PoseSet.isSimilarHandPose(
-          lastPose.handVector,
-          pose.handVector
+          pose.handVector,
+          lastPose.handVector
         );
       } else if (!lastPose.handVector && pose.handVector) {
         isSimilarHandPose = false;
       }
 
-      if (isSimilarBodyPose && isSimilarHandPose) {
-        // 身体・手ともに類似ポーズならばスキップ
-        return;
+      if (!isSimilarBodyPose || !isSimilarHandPose) {
+        // 身体・手のいずれかが前のポーズと類似していないならば、類似ポーズキューを処理して、ポーズ配列へ追加
+        this.pushPoseFromSimilarPoseQueue(pose.timeMiliseconds);
       }
-
-      // 前回のポーズの持続時間を設定
-      const poseDurationMiliseconds =
-        videoTimeMiliseconds - lastPose.timeMiliseconds;
-      this.poses[this.poses.length - 1].durationMiliseconds =
-        poseDurationMiliseconds;
     }
 
-    this.poses.push(pose);
+    // 類似ポーズキューへ追加
+    this.similarPoseQueue.push(pose);
 
     return pose;
   }
 
+  /**
+   * ポーズの配列からポーズが決まっている瞬間を取得
+   * @param poses ポーズの配列
+   * @returns ポーズが決まっている瞬間
+   */
+  static getSuitablePoseByPoses(poses: PoseSetItem[]): PoseSetItem {
+    if (poses.length === 0) return null;
+    if (poses.length === 1) {
+      return poses[1];
+    }
+
+    // 各標本ポーズごとの類似度を初期化
+    const similaritiesOfPoses: {
+      [key: number]: {
+        handSimilarity: number;
+        bodySimilarity: number;
+      }[];
+    } = {};
+    for (let i = 0; i < poses.length; i++) {
+      similaritiesOfPoses[poses[i].timeMiliseconds] = poses.map(
+        (pose: PoseSetItem) => {
+          return {
+            handSimilarity: 0,
+            bodySimilarity: 0,
+          };
+        }
+      );
+    }
+
+    // 各標本ポーズごとの類似度を計算
+    for (let samplePose of poses) {
+      let handSimilarity: number;
+
+      for (let i = 0; i < poses.length; i++) {
+        const pose = poses[i];
+        if (pose.handVector && samplePose.handVector) {
+          handSimilarity = PoseSet.getHandSimilarity(
+            pose.handVector,
+            samplePose.handVector
+          );
+        }
+
+        let bodySimilarity = PoseSet.getBodyPoseSimilarity(
+          pose.bodyVector,
+          samplePose.bodyVector
+        );
+
+        similaritiesOfPoses[samplePose.timeMiliseconds][i] = {
+          handSimilarity: handSimilarity ?? 0,
+          bodySimilarity,
+        };
+      }
+    }
+
+    // 類似度の高いフレームが多かったポーズを選択
+    const similaritiesOfSamplePoses = poses.map((pose: PoseSetItem) => {
+      return similaritiesOfPoses[pose.timeMiliseconds].reduce(
+        (
+          prev: number,
+          current: { handSimilarity: number; bodySimilarity: number }
+        ) => {
+          return prev + current.handSimilarity + current.bodySimilarity;
+        },
+        0
+      );
+    });
+    const maxSimilarity = Math.max(...similaritiesOfSamplePoses);
+    const maxSimilarityIndex = similaritiesOfSamplePoses.indexOf(maxSimilarity);
+    const selectedPose = poses[maxSimilarityIndex];
+    if (!selectedPose) {
+      console.warn(
+        `[PoseSet] getSuitablePoseByPoses`,
+        similaritiesOfSamplePoses,
+        maxSimilarity,
+        maxSimilarityIndex
+      );
+    }
+
+    console.debug(`[PoseSet] getSuitablePoseByPoses`, {
+      selected: selectedPose,
+      unselected: poses.filter((pose: PoseSetItem) => {
+        return pose.timeMiliseconds !== selectedPose.timeMiliseconds;
+      }),
+    });
+    return selectedPose;
+  }
+
+  /**
+   * 最終処理
+   * (重複したポーズの除去、画像のマージン除去など)
+   */
   async finalize() {
+    if (this.similarPoseQueue.length > 0) {
+      // 類似ポーズキューにポーズが残っている場合、最適なポーズを選択してポーズ配列へ追加
+      this.pushPoseFromSimilarPoseQueue(this.videoMetadata.duration);
+    }
+
     if (0 == this.poses.length) {
+      // ポーズが一つもない場合、処理を終了
       this.isFinalized = true;
       return;
     }
 
-    // 最後のポーズの持続時間を設定
-    if (1 <= this.poses.length) {
-      const lastPose = this.poses[this.poses.length - 1];
-      if (lastPose.durationMiliseconds == -1) {
-        const poseDurationMiliseconds =
-          this.videoMetadata.duration - lastPose.timeMiliseconds;
-        this.poses[this.poses.length - 1].durationMiliseconds =
-          poseDurationMiliseconds;
-      }
+    // ポーズの持続時間を設定
+    for (let i = 0; i < this.poses.length - 1; i++) {
+      if (this.poses[i].durationMiliseconds !== -1) continue;
+      this.poses[i].durationMiliseconds =
+        this.poses[i + 1].timeMiliseconds - this.poses[i].timeMiliseconds;
     }
+    this.poses[this.poses.length - 1].durationMiliseconds =
+      this.videoMetadata.duration -
+      this.poses[this.poses.length - 1].timeMiliseconds;
 
-    // 重複ポーズを除去
-    this.removeDuplicatedPoses();
+    // 全体から重複ポーズを除去
+    if (this.IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE) {
+      this.removeDuplicatedPoses();
+    }
 
     // 最初のポーズを除去
     this.poses.shift();
 
     // 画像のマージンを取得
-    console.log(`[PoseSet] finalize - Detecting image margins...`);
+    console.debug(`[PoseSet] finalize - Detecting image margins...`);
     let imageTrimming:
       | {
           marginTop: number;
@@ -297,7 +426,7 @@ export class PoseSet {
       await imageTrimmer.loadByDataUrl(pose.frameImageDataUrl);
 
       const marginColor = await imageTrimmer.getMarginColor();
-      console.log(
+      console.debug(
         `[PoseSet] finalize - Detected margin color...`,
         pose.timeMiliseconds,
         marginColor
@@ -312,7 +441,7 @@ export class PoseSet {
       );
       if (!trimmed) continue;
       imageTrimming = trimmed;
-      console.log(
+      console.debug(
         `[PoseSet] finalize - Determined image trimming positions...`,
         trimmed
       );
@@ -326,7 +455,7 @@ export class PoseSet {
         continue;
       }
 
-      console.log(
+      console.debug(
         `[PoseSet] finalize - Processing image...`,
         pose.timeMiliseconds
       );
@@ -422,39 +551,13 @@ export class PoseSet {
     this.isFinalized = true;
   }
 
-  removeDuplicatedPoses(): void {
-    // 全ポーズを比較して類似ポーズを削除
-    const newPoses: PoseSetItem[] = [];
-    for (const poseA of this.poses) {
-      let isDuplicated = false;
-      for (const poseB of newPoses) {
-        const isSimilarBodyPose = PoseSet.isSimilarBodyPose(
-          poseA.bodyVector,
-          poseB.bodyVector
-        );
-        const isSimilarHandPose =
-          poseA.handVector && poseB.handVector
-            ? PoseSet.isSimilarHandPose(poseA.handVector, poseB.handVector)
-            : false;
-
-        if (isSimilarBodyPose && isSimilarHandPose) {
-          // 身体・手ともに類似ポーズならば
-          isDuplicated = true;
-          break;
-        }
-      }
-
-      if (isDuplicated) continue;
-
-      newPoses.push(poseA);
-    }
-
-    console.info(
-      `[PoseSet] removeDuplicatedPoses - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`
-    );
-    this.poses = newPoses;
-  }
-
+  /**
+   * 類似ポーズの取得
+   * @param results MediaPipe Holistic によるポーズの検出結果
+   * @param threshold しきい値
+   * @param targetRange ポーズを比較する範囲 (all: 全て, bodyPose: 身体のみ, handPose: 手指のみ)
+   * @returns 類似ポーズの配列
+   */
   getSimilarPoses(
     results: Results,
     threshold: number = 0.9,
@@ -496,7 +599,7 @@ export class PoseSet {
         continue;
       }
 
-      /*console.log(
+      /*console.debug(
         '[PoseSet] getSimilarPoses - ',
         this.getVideoName(),
         pose.timeMiliseconds
@@ -551,6 +654,11 @@ export class PoseSet {
     return poses;
   }
 
+  /**
+   * 身体の姿勢を表すベクトルの取得
+   * @param poseLandmarks MediaPipe Holistic で取得できた身体のワールド座標 (ra 配列)
+   * @returns ベクトル
+   */
   static getBodyVector(
     poseLandmarks: { x: number; y: number; z: number }[]
   ): BodyVector | undefined {
@@ -590,6 +698,12 @@ export class PoseSet {
     };
   }
 
+  /**
+   * 手指の姿勢を表すベクトルの取得
+   * @param leftHandLandmarks MediaPipe Holistic で取得できた左手の正規化座標
+   * @param rightHandLandmarks MediaPipe Holistic で取得できた右手の正規化座標
+   * @returns ベクトル
+   */
   static getHandVector(
     leftHandLandmarks: { x: number; y: number; z: number }[],
     rightHandLandmarks: { x: number; y: number; z: number }[]
@@ -775,6 +889,13 @@ export class PoseSet {
     };
   }
 
+  /**
+   * BodyVector 間が類似しているかどうかの判定
+   * @param bodyVectorA 比較先の BodyVector
+   * @param bodyVectorB 比較元の BodyVector
+   * @param threshold しきい値
+   * @returns 類似しているかどうか
+   */
   static isSimilarBodyPose(
     bodyVectorA: BodyVector,
     bodyVectorB: BodyVector,
@@ -784,11 +905,17 @@ export class PoseSet {
     const similarity = PoseSet.getBodyPoseSimilarity(bodyVectorA, bodyVectorB);
     if (similarity >= threshold) isSimilar = true;
 
-    // console.log(`[PoseSet] isSimilarPose`, isSimilar, similarity);
+    // console.debug(`[PoseSet] isSimilarPose`, isSimilar, similarity);
 
     return isSimilar;
   }
 
+  /**
+   * 身体ポーズの類似度の取得
+   * @param bodyVectorA 比較先の BodyVector
+   * @param bodyVectorB 比較元の BodyVector
+   * @returns 類似度
+   */
   static getBodyPoseSimilarity(
     bodyVectorA: BodyVector,
     bodyVectorB: BodyVector
@@ -819,6 +946,13 @@ export class PoseSet {
     return cosSimilaritiesSum / Object.keys(cosSimilarities).length;
   }
 
+  /**
+   * HandVector 間が類似しているかどうかの判定
+   * @param handVectorA 比較先の HandVector
+   * @param handVectorB 比較元の HandVector
+   * @param threshold しきい値
+   * @returns 類似しているかどうか
+   */
   static isSimilarHandPose(
     handVectorA: HandVector,
     handVectorB: HandVector,
@@ -831,6 +965,12 @@ export class PoseSet {
     return similarity >= threshold;
   }
 
+  /**
+   * 手のポーズの類似度の取得
+   * @param handVectorA 比較先の HandVector
+   * @param handVectorB 比較元の HandVector
+   * @returns 類似度
+   */
   static getHandSimilarity(
     handVectorA: HandVector,
     handVectorB: HandVector
@@ -968,7 +1108,7 @@ export class PoseSet {
         handVectorA.leftThumbFirstJointToSecondJoint === null
       ) {
         // handVectorB で左手があるのに handVectorA で左手がない場合、類似度を減らす
-        console.log(
+        console.debug(
           `[PoseSet] getHandSimilarity - Adjust similarity, because left hand not found...`
         );
         return (
@@ -986,7 +1126,7 @@ export class PoseSet {
         handVectorA.rightThumbFirstJointToSecondJoint === null
       ) {
         // handVectorB で右手があるのに handVectorA で右手がない場合、類似度を減らす
-        console.log(
+        console.debug(
           `[PoseSet] getHandSimilarity - Adjust similarity, because right hand not found...`
         );
         return (
@@ -1003,6 +1143,10 @@ export class PoseSet {
     return -1;
   }
 
+  /**
+   * ZIP ファイルとしてのシリアライズ
+   * @returns ZIPファイル (Blob 形式)
+   */
   public async getZip(): Promise<Blob> {
     const jsZip = new JSZip();
     jsZip.file('poses.json', await this.getJson());
@@ -1063,19 +1207,10 @@ export class PoseSet {
     return await jsZip.generateAsync({ type: 'blob' });
   }
 
-  getFileExtensionByMime(IMAGE_MIME: string) {
-    switch (IMAGE_MIME) {
-      case 'image/png':
-        return 'png';
-      case 'image/jpeg':
-        return 'jpg';
-      case 'image/webp':
-        return 'webp';
-      default:
-        return 'png';
-    }
-  }
-
+  /**
+   * JSON 文字列としてのシリアライズ
+   * @returns JSON 文字列
+   */
   public async getJson(): Promise<string> {
     if (this.videoMetadata === undefined || this.poses === undefined)
       return '{}';
@@ -1120,6 +1255,8 @@ export class PoseSet {
           v: bodyVector,
           h: handVector,
           e: pose.extendedData,
+          md: pose.mergedDurationMiliseconds,
+          mt: pose.mergedTimeMiliseconds,
         };
       }),
       poseLandmarkMapppings: poseLandmarkMappings,
@@ -1128,6 +1265,10 @@ export class PoseSet {
     return JSON.stringify(json);
   }
 
+  /**
+   * JSON からの読み込み
+   * @param json JSON 文字列 または JSON オブジェクト
+   */
   loadJson(json: string | any) {
     const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
 
@@ -1161,14 +1302,21 @@ export class PoseSet {
         handVector: handVector,
         frameImageDataUrl: undefined,
         extendedData: item.e,
+        debug: undefined,
+        mergedDurationMiliseconds: item.md,
+        mergedTimeMiliseconds: item.mt,
       };
     });
   }
 
+  /**
+   * ZIP ファイルからの読み込み
+   * @param buffer ZIP ファイルの Buffer
+   * @param includeImages 画像を展開するかどうか
+   */
   async loadZip(buffer: ArrayBuffer, includeImages: boolean = true) {
-    console.log(`[PoseSet] loadZip...`, JSZip);
     const jsZip = new JSZip();
-    console.log(`[PoseSet] init...`);
+    console.debug(`[PoseSet] init...`);
     const zip = await jsZip.loadAsync(buffer, { base64: false });
     if (!zip) throw 'ZIPファイルを読み込めませんでした';
 
@@ -1202,6 +1350,134 @@ export class PoseSet {
           }
         }
       }
+    }
+  }
+
+  private pushPoseFromSimilarPoseQueue(nextPoseTimeMiliseconds?: number) {
+    if (this.similarPoseQueue.length === 0) return;
+
+    if (this.similarPoseQueue.length === 1) {
+      // 類似ポーズキューにポーズが一つしかない場合、当該ポーズをポーズ配列へ追加
+      const pose = this.similarPoseQueue[0];
+      this.poses.push(pose);
+      this.similarPoseQueue = [];
+      return;
+    }
+
+    // 各ポーズの持続時間を設定
+    for (let i = 0; i < this.similarPoseQueue.length - 1; i++) {
+      this.similarPoseQueue[i].durationMiliseconds =
+        this.similarPoseQueue[i + 1].timeMiliseconds -
+        this.similarPoseQueue[i].timeMiliseconds;
+    }
+    if (nextPoseTimeMiliseconds) {
+      this.similarPoseQueue[
+        this.similarPoseQueue.length - 1
+      ].durationMiliseconds =
+        nextPoseTimeMiliseconds -
+        this.similarPoseQueue[this.similarPoseQueue.length - 1].timeMiliseconds;
+    }
+
+    // 類似ポーズキューの中から最も持続時間が長いポーズを選択
+    const selectedPose = PoseSet.getSuitablePoseByPoses(this.similarPoseQueue);
+
+    // 選択されなかったポーズを列挙
+    selectedPose.debug.duplicatedItems = this.similarPoseQueue
+      .filter((item: PoseSetItem) => {
+        return item.timeMiliseconds !== selectedPose.timeMiliseconds;
+      })
+      .map((item: PoseSetItem) => {
+        return {
+          timeMiliseconds: item.timeMiliseconds,
+          durationMiliseconds: item.durationMiliseconds,
+          bodySimilarity: undefined,
+          handSimilarity: undefined,
+        };
+      });
+    selectedPose.mergedTimeMiliseconds =
+      this.similarPoseQueue[0].timeMiliseconds;
+    selectedPose.mergedDurationMiliseconds = this.similarPoseQueue.reduce(
+      (sum: number, item: PoseSetItem) => {
+        return sum + item.durationMiliseconds;
+      },
+      0
+    );
+
+    // 当該ポーズをポーズ配列へ追加
+    if (this.IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND) {
+      this.poses.push(selectedPose);
+    } else {
+      // デバッグ用
+      this.poses.push(...this.similarPoseQueue);
+    }
+
+    // 類似ポーズキューをクリア
+    this.similarPoseQueue = [];
+  }
+
+  private removeDuplicatedPoses(): void {
+    // 全ポーズを比較して類似ポーズを削除
+    const newPoses: PoseSetItem[] = [],
+      removedPoses: PoseSetItem[] = [];
+    for (const pose of this.poses) {
+      let duplicatedPose: PoseSetItem;
+      for (const insertedPose of newPoses) {
+        const isSimilarBodyPose = PoseSet.isSimilarBodyPose(
+          pose.bodyVector,
+          insertedPose.bodyVector
+        );
+        const isSimilarHandPose =
+          pose.handVector && insertedPose.handVector
+            ? PoseSet.isSimilarHandPose(
+                pose.handVector,
+                insertedPose.handVector,
+                0.9
+              )
+            : false;
+
+        if (isSimilarBodyPose && isSimilarHandPose) {
+          // 身体・手ともに類似ポーズならば
+          duplicatedPose = insertedPose;
+          break;
+        }
+      }
+
+      if (duplicatedPose) {
+        removedPoses.push(pose);
+        if (duplicatedPose.debug.duplicatedItems) {
+          duplicatedPose.debug.duplicatedItems.push({
+            timeMiliseconds: pose.timeMiliseconds,
+            durationMiliseconds: pose.durationMiliseconds,
+            bodySimilarity: undefined,
+            handSimilarity: undefined,
+          });
+        }
+        continue;
+      }
+
+      newPoses.push(pose);
+    }
+
+    console.info(
+      `[PoseSet] removeDuplicatedPoses - Reduced ${this.poses.length} poses -> ${newPoses.length} poses`,
+      {
+        removed: removedPoses,
+        keeped: newPoses,
+      }
+    );
+    this.poses = newPoses;
+  }
+
+  private getFileExtensionByMime(IMAGE_MIME: string) {
+    switch (IMAGE_MIME) {
+      case 'image/png':
+        return 'png';
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/webp':
+        return 'webp';
+      default:
+        return 'png';
     }
   }
 }

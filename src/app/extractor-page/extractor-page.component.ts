@@ -48,8 +48,8 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   // 現在作成している PoseSet
   public poseSet?: PoseSet;
 
-  // 映像のフレームを抽出するための mp4box ライブラリのインスタンス
-  public mp4boxFile: any;
+  // 映像の長さ
+  public sourceVideoDuration?: number;
 
   // 映像の抽出されたフレーム
   public sourceVideoFrames?: {
@@ -70,7 +70,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
   private sourceVideoLoadTimer: any = null;
 
   // 映像のフレームを抽出するためのキャンバスおよび変数
-  private readonly MINIMUM_FRAME_INTERVAL_MILISECONDS = 250;
+  private readonly MINIMUM_FRAME_INTERVAL_MILISECONDS = 200;
   private sourceFrameCanvas?: HTMLCanvasElement;
   private sourceFrameCanvasContext?: CanvasRenderingContext2D;
   private lastFrameDrawedAt?: number;
@@ -163,14 +163,27 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
     });
 
     const demuxer = new MP4Demuxer(videoFileUrl, {
-      onConfig: (config: any) => {
+      onConfig: (config: {
+        codec: string;
+        codedWidth: number;
+        codedHeight: number;
+        description: any;
+        track: any;
+      }) => {
+        this.sourceVideoDuration =
+          config.track.movie_duration && config.track.movie_timescale
+            ? Math.floor(
+                (config.track.movie_duration / config.track.movie_timescale) *
+                  1000
+              )
+            : -1;
         decoder.configure(config);
       },
       onChunk: (chunk: any) => {
         decoder.decode(chunk);
       },
       setStatus: (type: string, message: string) => {
-        console.log(
+        console.debug(
           `[ExtractorPageComponent] - MP4Demuxer setStatus`,
           type,
           message
@@ -260,7 +273,7 @@ export class ExtractorPageComponent implements OnInit, OnDestroy {
         ' frames からポーズ検出をおこなっています... '
     );
     this.state = 'processing';
-    console.log(
+    console.debug(
       `[ExtractorPageComponent] - onVideoAllFramesLoaded`,
       this.sourceVideoFrames
     );

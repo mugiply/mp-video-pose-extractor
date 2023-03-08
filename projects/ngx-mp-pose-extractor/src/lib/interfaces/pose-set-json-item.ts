@@ -15,4 +15,8 @@ export interface PoseSetJsonItem {
   h?: (number[] | null)[];
   // extendedData
   e?: { [key: string]: any };
+  // mergedTimeMiliseconds
+  mt?: number;
+  // mergedDurationMiliseconds
+  md?: number;
 }
