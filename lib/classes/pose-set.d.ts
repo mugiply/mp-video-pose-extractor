@@ -12,7 +12,6 @@ export declare class PoseSet {
     static readonly BODY_VECTOR_MAPPINGS: string[];
     static readonly HAND_VECTOR_MAPPINGS: string[];
     private similarPoseQueue;
-    private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE;
     private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND;
     private readonly IMAGE_WIDTH;
     private readonly IMAGE_MIME;
@@ -56,7 +55,7 @@ export declare class PoseSet {
      * 最終処理
      * (重複したポーズの除去、画像のマージン除去など)
      */
-    finalize(): Promise<void>;
+    finalize(isRemoveDuplicate?: boolean): Promise<void>;
     /**
      * 類似ポーズの取得
      * @param results MediaPipe Holistic によるポーズの検出結果
@@ -141,7 +140,8 @@ export declare class PoseSet {
      * @param includeImages 画像を展開するかどうか
      */
     loadZip(buffer: ArrayBuffer, includeImages?: boolean): Promise<void>;
+    static getCosSimilarity(a: number[], b: number[]): any;
     private pushPoseFromSimilarPoseQueue;
-    private removeDuplicatedPoses;
+    removeDuplicatedPoses(): void;
     private getFileExtensionByMime;
 }
