@@ -206,26 +206,14 @@
         </mat-radio-group>
       </div>
 
-      <div
-        class="preview-video-container"
-        *ngFor="let poseSetItem of poseSet?.getPoses()?.slice()"
-        matTooltip="重複: {{ poseSetItem.debug.duplicatedItems | json }}"
+      <ng-container
+        *ngFor="let poseSetItem of this.poseSet?.getPoses()?.slice()"
       >
-        <p class="label">
-          {{ poseSetItem.timeMiliseconds }}
-          ({{ poseSetItem.durationMiliseconds }}) [{{
-            poseSetItem.debug.duplicatedItems.length
-          }}]
-        </p>
-        <img
-          class="preview-video"
-          [src]="
-            this.previewImage === 'pose'
-              ? poseSetItem.poseImageDataUrl
-              : poseSetItem.frameImageDataUrl
-          "
-        />
-      </div>
+        <app-extracted-pose
+          [previewImage]="this.previewImage"
+          [poseSetItem]="poseSetItem"
+        ></app-extracted-pose>
+      </ng-container>
     </mat-card-content>
   </mat-card>
   <!---->

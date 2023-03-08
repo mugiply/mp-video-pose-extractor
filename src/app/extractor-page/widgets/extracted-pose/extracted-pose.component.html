@@ -1,0 +1,29 @@
+<div
+  class="preview-video-container"
+  matTooltip="{{ poseSetItem | poseDebug }}"
+  matTooltipClass="my-tooltip"
+>
+  <p class="label">
+    {{ poseSetItem.timeMiliseconds }}
+    ({{ poseSetItem.durationMiliseconds }}) [{{
+      poseSetItem.debug.duplicatedItems.length
+    }}]
+  </p>
+  <img
+    class="preview-video"
+    [src]="
+      this.previewImage === 'pose'
+        ? poseSetItem.poseImageDataUrl
+        : poseSetItem.frameImageDataUrl
+    "
+  />
+  <button
+    class="copy-button"
+    color="primary"
+    mat-icon-button
+    matTooltip="クリップボードへコピー"
+    (click)="copyJsonToClipboard()"
+  >
+    <mat-icon>content_copy</mat-icon>
+  </button>
+</div>

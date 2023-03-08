@@ -72,7 +72,7 @@ export class PoseSet {
   private similarPoseQueue: PoseSetItem[] = [];
 
   // 類似ポーズの除去 - 全ポーズから
-  private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE = false;
+  private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE = true;
   // 類似ポーズの除去 - 各ポーズの前後から
   private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND = true;
 

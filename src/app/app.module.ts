@@ -11,6 +11,8 @@ import { TesterComponent } from './tester-page/tester.component';
 import { NgxMpPoseExtractorModule } from 'ngx-mp-pose-extractor';
 import { FormsModule } from '@angular/forms';
 import { ExtendedClassifierComponent } from './extractor-page/widgets/extended-classifier/extended-classifier.component';
+import { PoseDebugPipe } from './extractor-page/pipes/pose-debug.pipe';
+import { ExtractedPoseComponent } from './extractor-page/widgets/extracted-pose/extracted-pose.component';
 
 @NgModule({
   declarations: [
@@ -19,6 +21,8 @@ import { ExtendedClassifierComponent } from './extractor-page/widgets/extended-c
     TesterPageComponent,
     TesterComponent,
     ExtendedClassifierComponent,
+    PoseDebugPipe,
+    ExtractedPoseComponent,
   ],
   imports: [
     BrowserModule,
