@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build --project ngx-mp-pose-extractor && ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "jest --config ./jest.config.js"
   },
   "private": true,
   "dependencies": {
@@ -38,8 +38,12 @@
     "@angular/compiler-cli": "^15.0.0",
     "@types/dom-webcodecs": "^0.1.5",
     "@types/jasmine": "~4.3.0",
+    "@types/jest": "^29.4.0",
     "@types/offscreencanvas": "^2019.7.0",
     "jasmine-core": "~4.5.0",
+    "jest": "^29.5.0",
+    "jest-junit": "^15.0.0",
+    "jest-preset-angular": "^13.0.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.1.0",
     "karma-coverage": "~2.2.0",
@@ -47,5 +51,13 @@
     "karma-jasmine-html-reporter": "~2.0.0",
     "ng-packagr": "^15.0.0",
     "typescript": "~4.8.2"
+  },
+  "jest-junit": {
+    "outputName": "jest-junit.xml",
+    "ancestorSeparator": " › ",
+    "uniqueOutputName": "false",
+    "suiteNameTemplate": "{filepath}",
+    "classNameTemplate": "{classname}",
+    "titleTemplate": "{title}"
   }
 }

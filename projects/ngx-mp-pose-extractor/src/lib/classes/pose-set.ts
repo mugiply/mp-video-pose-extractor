@@ -6,7 +6,10 @@ import { PoseSetJsonItem } from '../interfaces/pose-set-json-item';
 import { BodyVector } from '../interfaces/body-vector';
 
 // @ts-ignore
-import cosSimilarity from 'cos-similarity';
+import cosSimilarityA from 'cos-similarity';
+// @ts-ignore
+import * as cosSimilarityB from 'cos-similarity';
+
 import { SimilarPoseItem } from '../interfaces/similar-pose-item';
 import { ImageTrimmer } from './internals/image-trimmer';
 import { HandVector } from '../interfaces/hand-vector';
@@ -71,8 +74,6 @@ export class PoseSet {
   // ポーズを追加するためのキュー
   private similarPoseQueue: PoseSetItem[] = [];
 
-  // 類似ポーズの除去 - 全ポーズから
-  private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE = true;
   // 類似ポーズの除去 - 各ポーズの前後から
   private readonly IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND = true;
 
@@ -153,17 +154,23 @@ export class PoseSet {
     faceFrameImageDataUrl: string | undefined,
     results: Results
   ): PoseSetItem | undefined {
-    if (results.poseLandmarks === undefined) return;
-
     if (this.poses.length === 0) {
       this.videoMetadata.firstPoseDetectedTime = videoTimeMiliseconds;
+    }
+
+    if (results.poseLandmarks === undefined) {
+      console.debug(
+        `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get poseLandmarks`,
+        results
+      );
+      return;
     }
 
     const poseLandmarksWithWorldCoordinate: any[] = (results as any).ea
       ? (results as any).ea
       : [];
     if (poseLandmarksWithWorldCoordinate.length === 0) {
-      console.warn(
+      console.debug(
         `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the pose with the world coordinate`,
         results
       );
@@ -183,17 +190,17 @@ export class PoseSet {
       results.leftHandLandmarks === undefined &&
       results.rightHandLandmarks === undefined
     ) {
-      console.warn(
+      console.debug(
         `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand landmarks`,
         results
       );
     } else if (results.leftHandLandmarks === undefined) {
-      console.warn(
+      console.debug(
         `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the left hand landmarks`,
         results
       );
     } else if (results.rightHandLandmarks === undefined) {
-      console.warn(
+      console.debug(
         `[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the right hand landmarks`,
         results
       );
@@ -377,7 +384,7 @@ export class PoseSet {
    * 最終処理
    * (重複したポーズの除去、画像のマージン除去など)
    */
-  async finalize() {
+  async finalize(isRemoveDuplicate: boolean = false) {
     if (this.similarPoseQueue.length > 0) {
       // 類似ポーズキューにポーズが残っている場合、最適なポーズを選択してポーズ配列へ追加
       this.pushPoseFromSimilarPoseQueue(this.videoMetadata.duration);
@@ -400,7 +407,7 @@ export class PoseSet {
       this.poses[this.poses.length - 1].timeMiliseconds;
 
     // 全体から重複ポーズを除去
-    if (this.IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_WHOLE) {
+    if (isRemoveDuplicate) {
       this.removeDuplicatedPoses();
     }
 
@@ -921,19 +928,19 @@ export class PoseSet {
     bodyVectorB: BodyVector
   ): number {
     const cosSimilarities = {
-      leftWristToLeftElbow: cosSimilarity(
+      leftWristToLeftElbow: PoseSet.getCosSimilarity(
         bodyVectorA.leftWristToLeftElbow,
         bodyVectorB.leftWristToLeftElbow
       ),
-      leftElbowToLeftShoulder: cosSimilarity(
+      leftElbowToLeftShoulder: PoseSet.getCosSimilarity(
         bodyVectorA.leftElbowToLeftShoulder,
         bodyVectorB.leftElbowToLeftShoulder
       ),
-      rightWristToRightElbow: cosSimilarity(
+      rightWristToRightElbow: PoseSet.getCosSimilarity(
         bodyVectorA.rightWristToRightElbow,
         bodyVectorB.rightWristToRightElbow
       ),
-      rightElbowToRightShoulder: cosSimilarity(
+      rightElbowToRightShoulder: PoseSet.getCosSimilarity(
         bodyVectorA.rightElbowToRightShoulder,
         bodyVectorB.rightElbowToRightShoulder
       ),
@@ -981,47 +988,47 @@ export class PoseSet {
         ? undefined
         : {
             // 右手 - 親指
-            rightThumbTipToFirstJoint: cosSimilarity(
+            rightThumbTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.rightThumbTipToFirstJoint,
               handVectorB.rightThumbTipToFirstJoint
             ),
-            rightThumbFirstJointToSecondJoint: cosSimilarity(
+            rightThumbFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.rightThumbFirstJointToSecondJoint,
               handVectorB.rightThumbFirstJointToSecondJoint
             ),
             // 右手 - 人差し指
-            rightIndexFingerTipToFirstJoint: cosSimilarity(
+            rightIndexFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.rightIndexFingerTipToFirstJoint,
               handVectorB.rightIndexFingerTipToFirstJoint
             ),
-            rightIndexFingerFirstJointToSecondJoint: cosSimilarity(
+            rightIndexFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.rightIndexFingerFirstJointToSecondJoint,
               handVectorB.rightIndexFingerFirstJointToSecondJoint
             ),
             // 右手 - 中指
-            rightMiddleFingerTipToFirstJoint: cosSimilarity(
+            rightMiddleFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.rightMiddleFingerTipToFirstJoint,
               handVectorB.rightMiddleFingerTipToFirstJoint
             ),
-            rightMiddleFingerFirstJointToSecondJoint: cosSimilarity(
+            rightMiddleFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.rightMiddleFingerFirstJointToSecondJoint,
               handVectorB.rightMiddleFingerFirstJointToSecondJoint
             ),
             // 右手 - 薬指
-            rightRingFingerTipToFirstJoint: cosSimilarity(
+            rightRingFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.rightRingFingerTipToFirstJoint,
               handVectorB.rightRingFingerFirstJointToSecondJoint
             ),
-            rightRingFingerFirstJointToSecondJoint: cosSimilarity(
+            rightRingFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.rightRingFingerFirstJointToSecondJoint,
               handVectorB.rightRingFingerFirstJointToSecondJoint
             ),
             // 右手 - 小指
-            rightPinkyFingerTipToFirstJoint: cosSimilarity(
+            rightPinkyFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.rightPinkyFingerTipToFirstJoint,
               handVectorB.rightPinkyFingerTipToFirstJoint
             ),
-            rightPinkyFingerFirstJointToSecondJoint: cosSimilarity(
+            rightPinkyFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.rightPinkyFingerFirstJointToSecondJoint,
               handVectorB.rightPinkyFingerFirstJointToSecondJoint
             ),
@@ -1033,47 +1040,47 @@ export class PoseSet {
         ? undefined
         : {
             // 左手 - 親指
-            leftThumbTipToFirstJoint: cosSimilarity(
+            leftThumbTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.leftThumbTipToFirstJoint,
               handVectorB.leftThumbTipToFirstJoint
             ),
-            leftThumbFirstJointToSecondJoint: cosSimilarity(
+            leftThumbFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.leftThumbFirstJointToSecondJoint,
               handVectorB.leftThumbFirstJointToSecondJoint
             ),
             // 左手 - 人差し指
-            leftIndexFingerTipToFirstJoint: cosSimilarity(
+            leftIndexFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.leftIndexFingerTipToFirstJoint,
               handVectorB.leftIndexFingerTipToFirstJoint
             ),
-            leftIndexFingerFirstJointToSecondJoint: cosSimilarity(
+            leftIndexFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.leftIndexFingerFirstJointToSecondJoint,
               handVectorB.leftIndexFingerFirstJointToSecondJoint
             ),
             // 左手 - 中指
-            leftMiddleFingerTipToFirstJoint: cosSimilarity(
+            leftMiddleFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.leftMiddleFingerTipToFirstJoint,
               handVectorB.leftMiddleFingerTipToFirstJoint
             ),
-            leftMiddleFingerFirstJointToSecondJoint: cosSimilarity(
+            leftMiddleFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.leftMiddleFingerFirstJointToSecondJoint,
               handVectorB.leftMiddleFingerFirstJointToSecondJoint
             ),
             // 左手 - 薬指
-            leftRingFingerTipToFirstJoint: cosSimilarity(
+            leftRingFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.leftRingFingerTipToFirstJoint,
               handVectorB.leftRingFingerTipToFirstJoint
             ),
-            leftRingFingerFirstJointToSecondJoint: cosSimilarity(
+            leftRingFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.leftRingFingerFirstJointToSecondJoint,
               handVectorB.leftRingFingerFirstJointToSecondJoint
             ),
             // 左手 - 小指
-            leftPinkyFingerTipToFirstJoint: cosSimilarity(
+            leftPinkyFingerTipToFirstJoint: PoseSet.getCosSimilarity(
               handVectorA.leftPinkyFingerTipToFirstJoint,
               handVectorB.leftPinkyFingerTipToFirstJoint
             ),
-            leftPinkyFingerFirstJointToSecondJoint: cosSimilarity(
+            leftPinkyFingerFirstJointToSecondJoint: PoseSet.getCosSimilarity(
               handVectorA.leftPinkyFingerFirstJointToSecondJoint,
               handVectorB.leftPinkyFingerFirstJointToSecondJoint
             ),
@@ -1353,6 +1360,13 @@ export class PoseSet {
     }
   }
 
+  static getCosSimilarity(a: number[], b: number[]) {
+    if (cosSimilarityA) {
+      return cosSimilarityA(a, b);
+    }
+    return cosSimilarityB(a, b);
+  }
+
   private pushPoseFromSimilarPoseQueue(nextPoseTimeMiliseconds?: number) {
     if (this.similarPoseQueue.length === 0) return;
 
@@ -1415,7 +1429,7 @@ export class PoseSet {
     this.similarPoseQueue = [];
   }
 
-  private removeDuplicatedPoses(): void {
+  removeDuplicatedPoses(): void {
     // 全ポーズを比較して類似ポーズを削除
     const newPoses: PoseSetItem[] = [],
       removedPoses: PoseSetItem[] = [];
