@@ -529,7 +529,7 @@ class PoseSet {
      * 最終処理
      * (重複したポーズの除去、画像のマージン除去など)
      */
-    async finalize(isRemoveDuplicate = false) {
+    async finalize(isRemoveDuplicate = true) {
         if (this.similarPoseQueue.length > 0) {
             // 類似ポーズキューにポーズが残っている場合、最適なポーズを選択してポーズ配列へ追加
             this.pushPoseFromSimilarPoseQueue(this.videoMetadata.duration);

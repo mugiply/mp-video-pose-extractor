@@ -553,7 +553,7 @@ class PoseSet {
      * 最終処理
      * (重複したポーズの除去、画像のマージン除去など)
      */
-    finalize(isRemoveDuplicate = false) {
+    finalize(isRemoveDuplicate = true) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.similarPoseQueue.length > 0) {
                 // 類似ポーズキューにポーズが残っている場合、最適なポーズを選択してポーズ配列へ追加
