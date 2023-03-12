@@ -19,10 +19,9 @@ export interface PoseSetItem {
     mergedDurationMiliseconds?: number;
     debug?: {
         duplicatedItems: {
+            id: number;
             timeMiliseconds: number;
             durationMiliseconds: number;
-            bodySimilarity?: number;
-            handSimilarity?: number;
         }[];
     };
 }

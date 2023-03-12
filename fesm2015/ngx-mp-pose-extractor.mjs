@@ -1319,8 +1319,6 @@ class PoseSet {
                 id: item.id,
                 timeMiliseconds: item.timeMiliseconds,
                 durationMiliseconds: item.durationMiliseconds,
-                bodySimilarity: undefined,
-                handSimilarity: undefined,
             };
         });
         selectedPose.mergedTimeMiliseconds =
@@ -1359,10 +1357,9 @@ class PoseSet {
                 removedPoses.push(pose);
                 if (duplicatedPose.debug.duplicatedItems) {
                     duplicatedPose.debug.duplicatedItems.push({
+                        id: pose.id,
                         timeMiliseconds: pose.timeMiliseconds,
                         durationMiliseconds: pose.durationMiliseconds,
-                        bodySimilarity: undefined,
-                        handSimilarity: undefined,
                     });
                 }
                 continue;
