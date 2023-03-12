@@ -1103,7 +1103,7 @@ class PoseSet {
                     try {
                         const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                         const base64 = pose.frameImageDataUrl.substring(index);
-                        jsZip.file(`frame-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                        jsZip.file(`frame-${pose.id}.${imageFileExt}`, base64, {
                             base64: true,
                         });
                     }
@@ -1116,7 +1116,7 @@ class PoseSet {
                     try {
                         const index = pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
                         const base64 = pose.poseImageDataUrl.substring(index);
-                        jsZip.file(`pose-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                        jsZip.file(`pose-${pose.id}.${imageFileExt}`, base64, {
                             base64: true,
                         });
                     }
@@ -1129,7 +1129,7 @@ class PoseSet {
                     try {
                         const index = pose.faceFrameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                         const base64 = pose.faceFrameImageDataUrl.substring(index);
-                        jsZip.file(`face-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                        jsZip.file(`face-${pose.id}.${imageFileExt}`, base64, {
                             base64: true,
                         });
                     }
@@ -1245,7 +1245,7 @@ class PoseSet {
      * @param includeImages 画像を展開するかどうか
      */
     loadZip(buffer, includeImages = true) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function* () {
             const jsZip = new JSZip();
             console.debug(`[PoseSet] init...`);
@@ -1261,17 +1261,23 @@ class PoseSet {
             if (includeImages) {
                 for (const pose of this.poses) {
                     if (!pose.frameImageDataUrl) {
-                        const frameImageFileName = `frame-${pose.timeMiliseconds}.${fileExt}`;
-                        const imageBase64 = yield ((_b = zip
-                            .file(frameImageFileName)) === null || _b === void 0 ? void 0 : _b.async('base64'));
+                        let imageBase64;
+                        if (zip.file(`frame-${pose.id}.${fileExt}`)) {
+                            imageBase64 = yield ((_b = zip
+                                .file(`frame-${pose.id}.${fileExt}`)) === null || _b === void 0 ? void 0 : _b.async('base64'));
+                        }
+                        else {
+                            imageBase64 = yield ((_c = zip
+                                .file(`frame-${pose.timeMiliseconds}.${fileExt}`)) === null || _c === void 0 ? void 0 : _c.async('base64'));
+                        }
                         if (imageBase64) {
                             pose.frameImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
                         }
                     }
                     if (!pose.poseImageDataUrl) {
-                        const poseImageFileName = `pose-${pose.timeMiliseconds}.${fileExt}`;
-                        const imageBase64 = yield ((_c = zip
-                            .file(poseImageFileName)) === null || _c === void 0 ? void 0 : _c.async('base64'));
+                        const poseImageFileName = `pose-${pose.id}.${fileExt}`;
+                        const imageBase64 = yield ((_d = zip
+                            .file(poseImageFileName)) === null || _d === void 0 ? void 0 : _d.async('base64'));
                         if (imageBase64) {
                             pose.poseImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
                         }

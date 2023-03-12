@@ -1081,7 +1081,7 @@ class PoseSet {
                 try {
                     const index = pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                     const base64 = pose.frameImageDataUrl.substring(index);
-                    jsZip.file(`frame-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                    jsZip.file(`frame-${pose.id}.${imageFileExt}`, base64, {
                         base64: true,
                     });
                 }
@@ -1094,7 +1094,7 @@ class PoseSet {
                 try {
                     const index = pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
                     const base64 = pose.poseImageDataUrl.substring(index);
-                    jsZip.file(`pose-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                    jsZip.file(`pose-${pose.id}.${imageFileExt}`, base64, {
                         base64: true,
                     });
                 }
@@ -1107,7 +1107,7 @@ class PoseSet {
                 try {
                     const index = pose.faceFrameImageDataUrl.indexOf('base64,') + 'base64,'.length;
                     const base64 = pose.faceFrameImageDataUrl.substring(index);
-                    jsZip.file(`face-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+                    jsZip.file(`face-${pose.id}.${imageFileExt}`, base64, {
                         base64: true,
                     });
                 }
@@ -1234,16 +1234,23 @@ class PoseSet {
         if (includeImages) {
             for (const pose of this.poses) {
                 if (!pose.frameImageDataUrl) {
-                    const frameImageFileName = `frame-${pose.timeMiliseconds}.${fileExt}`;
-                    const imageBase64 = await zip
-                        .file(frameImageFileName)
-                        ?.async('base64');
+                    let imageBase64;
+                    if (zip.file(`frame-${pose.id}.${fileExt}`)) {
+                        imageBase64 = await zip
+                            .file(`frame-${pose.id}.${fileExt}`)
+                            ?.async('base64');
+                    }
+                    else {
+                        imageBase64 = await zip
+                            .file(`frame-${pose.timeMiliseconds}.${fileExt}`)
+                            ?.async('base64');
+                    }
                     if (imageBase64) {
                         pose.frameImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
                     }
                 }
                 if (!pose.poseImageDataUrl) {
-                    const poseImageFileName = `pose-${pose.timeMiliseconds}.${fileExt}`;
+                    const poseImageFileName = `pose-${pose.id}.${fileExt}`;
                     const imageBase64 = await zip
                         .file(poseImageFileName)
                         ?.async('base64');
