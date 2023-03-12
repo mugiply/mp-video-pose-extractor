@@ -473,7 +473,7 @@ class PoseSet {
             debug: {
                 duplicatedItems: [],
             },
-            mergedTimeMiliseconds: -1,
+            mergedTimeMiliseconds: videoTimeMiliseconds,
             mergedDurationMiliseconds: -1,
         };
         let lastPose;
@@ -577,14 +577,24 @@ class PoseSet {
             }
             // ポーズの持続時間を設定
             for (let i = 0; i < this.poses.length - 1; i++) {
-                if (this.poses[i].durationMiliseconds !== -1)
-                    continue;
-                this.poses[i].durationMiliseconds =
-                    this.poses[i + 1].timeMiliseconds - this.poses[i].timeMiliseconds;
+                if (this.poses[i].durationMiliseconds === -1) {
+                    this.poses[i].durationMiliseconds =
+                        this.poses[i + 1].timeMiliseconds - this.poses[i].timeMiliseconds;
+                }
+                if (this.poses[i].mergedDurationMiliseconds === -1) {
+                    this.poses[i].mergedDurationMiliseconds =
+                        this.poses[i].durationMiliseconds;
+                }
             }
-            this.poses[this.poses.length - 1].durationMiliseconds =
-                this.videoMetadata.duration -
-                    this.poses[this.poses.length - 1].timeMiliseconds;
+            if (this.poses[this.poses.length - 1].durationMiliseconds === -1) {
+                this.poses[this.poses.length - 1].durationMiliseconds =
+                    this.videoMetadata.duration -
+                        this.poses[this.poses.length - 1].timeMiliseconds;
+            }
+            if (this.poses[this.poses.length - 1].mergedDurationMiliseconds === -1) {
+                this.poses[this.poses.length - 1].mergedDurationMiliseconds =
+                    this.poses[this.poses.length - 1].durationMiliseconds;
+            }
             // 全体から重複ポーズを除去
             if (isRemoveDuplicate) {
                 this.removeDuplicatedPoses();
@@ -1327,11 +1337,13 @@ class PoseSet {
                 durationMiliseconds: item.durationMiliseconds,
             };
         });
+        // 選択されたポーズの情報を更新
         selectedPose.mergedTimeMiliseconds =
             this.similarPoseQueue[0].timeMiliseconds;
         selectedPose.mergedDurationMiliseconds = this.similarPoseQueue.reduce((sum, item) => {
             return sum + item.durationMiliseconds;
         }, 0);
+        selectedPose.id = PoseSet.getIdByTimeMiliseconds(selectedPose.mergedTimeMiliseconds);
         // 当該ポーズをポーズ配列へ追加
         if (this.IS_ENABLED_REMOVE_DUPLICATED_POSES_FOR_AROUND) {
             this.poses.push(selectedPose);
