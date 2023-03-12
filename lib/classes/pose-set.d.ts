@@ -36,6 +36,12 @@ export declare class PoseSet {
      */
     getPoses(): PoseSetItem[];
     /**
+     * 指定されたID (PoseSetItemId) によるポーズの取得
+     * @param poseSetItemId
+     * @returns ポーズ
+     */
+    getPoseById(poseSetItemId: number): PoseSetItem | undefined;
+    /**
      * 指定された時間によるポーズの取得
      * @param timeMiliseconds ポーズの時間 (ミリ秒)
      * @returns ポーズ
@@ -143,5 +149,6 @@ export declare class PoseSet {
     static getCosSimilarity(a: number[], b: number[]): any;
     private pushPoseFromSimilarPoseQueue;
     removeDuplicatedPoses(): void;
+    static getIdByTimeMiliseconds(timeMiliseconds: number): number;
     private getFileExtensionByMime;
 }

@@ -1,4 +1,5 @@
 export interface PoseSetJsonItem {
+    id: number;
     t: number;
     d: number;
     p?: number[][];

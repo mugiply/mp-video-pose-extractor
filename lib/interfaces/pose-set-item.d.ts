@@ -1,6 +1,7 @@
 import { HandVector } from './hand-vector';
 import { BodyVector } from './body-vector';
 export interface PoseSetItem {
+    id: number;
     timeMiliseconds: number;
     durationMiliseconds: number;
     pose?: number[][];

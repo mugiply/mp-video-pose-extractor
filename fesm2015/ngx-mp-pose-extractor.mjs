@@ -381,6 +381,16 @@ class PoseSet {
         return this.poses;
     }
     /**
+     * 指定されたID (PoseSetItemId) によるポーズの取得
+     * @param poseSetItemId
+     * @returns ポーズ
+     */
+    getPoseById(poseSetItemId) {
+        if (this.poses === undefined)
+            return undefined;
+        return this.poses.find((pose) => pose.id === poseSetItemId);
+    }
+    /**
      * 指定された時間によるポーズの取得
      * @param timeMiliseconds ポーズの時間 (ミリ秒)
      * @returns ポーズ
@@ -429,6 +439,7 @@ class PoseSet {
             console.warn(`[PoseSet] pushPose (${videoTimeMiliseconds}) - Could not get the hand vector`, results);
         }
         const pose = {
+            id: PoseSet.getIdByTimeMiliseconds(videoTimeMiliseconds),
             timeMiliseconds: videoTimeMiliseconds,
             durationMiliseconds: -1,
             pose: poseLandmarksWithWorldCoordinate.map((worldCoordinateLandmark) => {
@@ -1167,6 +1178,7 @@ class PoseSet {
                     }
                     // PoseSetJsonItem の pose オブジェクトを生成
                     return {
+                        id: pose.id,
                         t: pose.timeMiliseconds,
                         d: pose.durationMiliseconds,
                         p: pose.pose,
@@ -1209,6 +1221,9 @@ class PoseSet {
                 });
             }
             return {
+                id: item.id === undefined
+                    ? PoseSet.getIdByTimeMiliseconds(item.t)
+                    : item.id,
                 timeMiliseconds: item.t,
                 durationMiliseconds: item.d,
                 pose: item.p,
@@ -1301,6 +1316,7 @@ class PoseSet {
         })
             .map((item) => {
             return {
+                id: item.id,
                 timeMiliseconds: item.timeMiliseconds,
                 durationMiliseconds: item.durationMiliseconds,
                 bodySimilarity: undefined,
@@ -1358,6 +1374,9 @@ class PoseSet {
             keeped: newPoses,
         });
         this.poses = newPoses;
+    }
+    static getIdByTimeMiliseconds(timeMiliseconds) {
+        return Math.floor(timeMiliseconds / 100) * 100;
     }
     getFileExtensionByMime(IMAGE_MIME) {
         switch (IMAGE_MIME) {
