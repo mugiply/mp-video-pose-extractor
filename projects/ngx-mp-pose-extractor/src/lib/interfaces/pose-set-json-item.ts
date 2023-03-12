@@ -1,4 +1,6 @@
 export interface PoseSetJsonItem {
+  // id
+  id: number;
   // timeMiliseconds
   t: number;
   // durationMiliseconds

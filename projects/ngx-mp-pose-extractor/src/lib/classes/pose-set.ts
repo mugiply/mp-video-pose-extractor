@@ -135,6 +135,16 @@ export class PoseSet {
   }
 
   /**
+   * 指定されたID (PoseSetItemId) によるポーズの取得
+   * @param poseSetItemId
+   * @returns ポーズ
+   */
+  getPoseById(poseSetItemId: number): PoseSetItem | undefined {
+    if (this.poses === undefined) return undefined;
+    return this.poses.find((pose) => pose.id === poseSetItemId);
+  }
+
+  /**
    * 指定された時間によるポーズの取得
    * @param timeMiliseconds ポーズの時間 (ミリ秒)
    * @returns ポーズ
@@ -218,6 +228,7 @@ export class PoseSet {
     }
 
     const pose: PoseSetItem = {
+      id: PoseSet.getIdByTimeMiliseconds(videoTimeMiliseconds),
       timeMiliseconds: videoTimeMiliseconds,
       durationMiliseconds: -1,
       pose: poseLandmarksWithWorldCoordinate.map((worldCoordinateLandmark) => {
@@ -251,7 +262,7 @@ export class PoseSet {
       debug: {
         duplicatedItems: [],
       },
-      mergedTimeMiliseconds: -1,
+      mergedTimeMiliseconds: videoTimeMiliseconds,
       mergedDurationMiliseconds: -1,
     };
 
@@ -398,13 +409,25 @@ export class PoseSet {
 
     // ポーズの持続時間を設定
     for (let i = 0; i < this.poses.length - 1; i++) {
-      if (this.poses[i].durationMiliseconds !== -1) continue;
-      this.poses[i].durationMiliseconds =
-        this.poses[i + 1].timeMiliseconds - this.poses[i].timeMiliseconds;
+      if (this.poses[i].durationMiliseconds === -1) {
+        this.poses[i].durationMiliseconds =
+          this.poses[i + 1].timeMiliseconds - this.poses[i].timeMiliseconds;
+      }
+      if (this.poses[i].mergedDurationMiliseconds === -1) {
+        this.poses[i].mergedDurationMiliseconds =
+          this.poses[i].durationMiliseconds;
+      }
     }
-    this.poses[this.poses.length - 1].durationMiliseconds =
-      this.videoMetadata.duration -
-      this.poses[this.poses.length - 1].timeMiliseconds;
+
+    if (this.poses[this.poses.length - 1].durationMiliseconds === -1) {
+      this.poses[this.poses.length - 1].durationMiliseconds =
+        this.videoMetadata.duration -
+        this.poses[this.poses.length - 1].timeMiliseconds;
+    }
+    if (this.poses[this.poses.length - 1].mergedDurationMiliseconds === -1) {
+      this.poses[this.poses.length - 1].mergedDurationMiliseconds =
+        this.poses[this.poses.length - 1].durationMiliseconds;
+    }
 
     // 全体から重複ポーズを除去
     if (isRemoveDuplicate) {
@@ -1166,7 +1189,7 @@ export class PoseSet {
           const index =
             pose.frameImageDataUrl.indexOf('base64,') + 'base64,'.length;
           const base64 = pose.frameImageDataUrl.substring(index);
-          jsZip.file(`frame-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+          jsZip.file(`frame-${pose.id}.${imageFileExt}`, base64, {
             base64: true,
           });
         } catch (error) {
@@ -1182,7 +1205,7 @@ export class PoseSet {
           const index =
             pose.poseImageDataUrl.indexOf('base64,') + 'base64,'.length;
           const base64 = pose.poseImageDataUrl.substring(index);
-          jsZip.file(`pose-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+          jsZip.file(`pose-${pose.id}.${imageFileExt}`, base64, {
             base64: true,
           });
         } catch (error) {
@@ -1198,7 +1221,7 @@ export class PoseSet {
           const index =
             pose.faceFrameImageDataUrl.indexOf('base64,') + 'base64,'.length;
           const base64 = pose.faceFrameImageDataUrl.substring(index);
-          jsZip.file(`face-${pose.timeMiliseconds}.${imageFileExt}`, base64, {
+          jsZip.file(`face-${pose.id}.${imageFileExt}`, base64, {
             base64: true,
           });
         } catch (error) {
@@ -1254,6 +1277,7 @@ export class PoseSet {
 
         // PoseSetJsonItem の pose オブジェクトを生成
         return {
+          id: pose.id,
           t: pose.timeMiliseconds,
           d: pose.durationMiliseconds,
           p: pose.pose,
@@ -1300,6 +1324,10 @@ export class PoseSet {
       }
 
       return {
+        id:
+          item.id === undefined
+            ? PoseSet.getIdByTimeMiliseconds(item.t)
+            : item.id,
         timeMiliseconds: item.t,
         durationMiliseconds: item.d,
         pose: item.p,
@@ -1339,16 +1367,22 @@ export class PoseSet {
     if (includeImages) {
       for (const pose of this.poses) {
         if (!pose.frameImageDataUrl) {
-          const frameImageFileName = `frame-${pose.timeMiliseconds}.${fileExt}`;
-          const imageBase64 = await zip
-            .file(frameImageFileName)
-            ?.async('base64');
+          let imageBase64: string;
+          if (zip.file(`frame-${pose.id}.${fileExt}`)) {
+            imageBase64 = await zip
+              .file(`frame-${pose.id}.${fileExt}`)
+              ?.async('base64');
+          } else {
+            imageBase64 = await zip
+              .file(`frame-${pose.timeMiliseconds}.${fileExt}`)
+              ?.async('base64');
+          }
           if (imageBase64) {
             pose.frameImageDataUrl = `data:${this.IMAGE_MIME};base64,${imageBase64}`;
           }
         }
         if (!pose.poseImageDataUrl) {
-          const poseImageFileName = `pose-${pose.timeMiliseconds}.${fileExt}`;
+          const poseImageFileName = `pose-${pose.id}.${fileExt}`;
           const imageBase64 = await zip
             .file(poseImageFileName)
             ?.async('base64');
@@ -1402,12 +1436,13 @@ export class PoseSet {
       })
       .map((item: PoseSetItem) => {
         return {
+          id: item.id,
           timeMiliseconds: item.timeMiliseconds,
           durationMiliseconds: item.durationMiliseconds,
-          bodySimilarity: undefined,
-          handSimilarity: undefined,
         };
       });
+
+    // 選択されたポーズの情報を更新
     selectedPose.mergedTimeMiliseconds =
       this.similarPoseQueue[0].timeMiliseconds;
     selectedPose.mergedDurationMiliseconds = this.similarPoseQueue.reduce(
@@ -1415,6 +1450,9 @@ export class PoseSet {
         return sum + item.durationMiliseconds;
       },
       0
+    );
+    selectedPose.id = PoseSet.getIdByTimeMiliseconds(
+      selectedPose.mergedTimeMiliseconds
     );
 
     // 当該ポーズをポーズ配列へ追加
@@ -1460,10 +1498,9 @@ export class PoseSet {
         removedPoses.push(pose);
         if (duplicatedPose.debug.duplicatedItems) {
           duplicatedPose.debug.duplicatedItems.push({
+            id: pose.id,
             timeMiliseconds: pose.timeMiliseconds,
             durationMiliseconds: pose.durationMiliseconds,
-            bodySimilarity: undefined,
-            handSimilarity: undefined,
           });
         }
         continue;
@@ -1480,6 +1517,10 @@ export class PoseSet {
       }
     );
     this.poses = newPoses;
+  }
+
+  static getIdByTimeMiliseconds(timeMiliseconds: number) {
+    return Math.floor(timeMiliseconds / 100) * 100;
   }
 
   private getFileExtensionByMime(IMAGE_MIME: string) {

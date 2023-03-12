@@ -2,6 +2,7 @@ import { HandVector } from './hand-vector';
 import { BodyVector } from './body-vector';
 
 export interface PoseSetItem {
+  id: number;
   timeMiliseconds: number;
   durationMiliseconds: number;
   pose?: number[][];
@@ -18,10 +19,9 @@ export interface PoseSetItem {
 
   debug?: {
     duplicatedItems: {
+      id: number;
       timeMiliseconds: number;
       durationMiliseconds: number;
-      bodySimilarity?: number;
-      handSimilarity?: number;
     }[];
   };
 }

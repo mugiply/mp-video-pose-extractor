@@ -61,10 +61,12 @@ describe('PoseSet', () => {
     expect(poseSet.getNumberOfPoses()).toBe(27);
     expect(poseSet.getPoseByTime(1144).debug.duplicatedItems).toEqual([
       {
+        id: 700,
         timeMiliseconds: 712,
         durationMiliseconds: 211,
       },
       {
+        id: 900,
         timeMiliseconds: 923,
         durationMiliseconds: 221,
       },

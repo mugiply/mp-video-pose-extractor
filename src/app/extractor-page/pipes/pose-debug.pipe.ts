@@ -16,10 +16,6 @@ export class PoseDebugPipe implements PipeTransform {
     }
     for (const duplicatedItem of item.debug.duplicatedItems) {
       result += `・${duplicatedItem.timeMiliseconds}`;
-      if (duplicatedItem.bodySimilarity !== undefined) {
-        result += `　・bodySim: ${duplicatedItem.bodySimilarity}
-　・handSim: ${duplicatedItem.handSimilarity ?? 'N/A'}`;
-      }
     }
 
     return result;
