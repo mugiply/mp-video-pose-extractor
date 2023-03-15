@@ -24,7 +24,7 @@ export class PoseComposerService {
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
-    a.download = `${poseSet.getVideoName()}-poses.json`;
+    a.download = `${poseSet.getVideoName()}.poses.json`;
     a.click();
   }
 
@@ -34,7 +34,7 @@ export class PoseComposerService {
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
-    a.download = `${poseSet.getVideoName()}-poses.zip`;
+    a.download = `${poseSet.getVideoName()}.poses.zip`;
     a.click();
   }
 }
